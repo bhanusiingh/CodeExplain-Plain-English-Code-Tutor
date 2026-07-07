@@ -64,7 +64,7 @@ CodeExplain-Plain-English-Code-Tutor/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/CodeExplain-Plain-English-Code-Tutor.git
+git clone https://github.com/bhanusiingh/CodeExplain-Plain-English-Code-Tutor.git
 cd CodeExplain-Plain-English-Code-Tutor
 ```
 

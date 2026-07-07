@@ -2,14 +2,30 @@
 app.py
 ------
 CodeExplain: Plain-English Code Tutor
-Entry point — Streamlit UI Shell (Module 1)
+Entry point — Streamlit UI (Module 4)
 
 Includes: sidebar, language selector, code editor,
-          explain/quiz buttons, output placeholders, footer.
-No Gemini API calls in this module.
+          explain/quiz buttons, live Gemini output, footer.
+Module 4: Explain Code pipeline fully connected.
 """
 
+from pathlib import Path
 import streamlit as st
+from features.explain import (
+    run_explanation,
+    SECTION_SUMMARY,
+    SECTION_LINE_BY_LINE,
+    SECTION_TIME,
+    SECTION_SPACE,
+    SECTION_IMPROVEMENTS,
+)
+from features.quiz import run_quiz
+from services.gemini_service import get_api_key_info
+
+# ── Asset paths ───────────────────────────────────────────────────────────────
+_ASSETS_DIR = Path(__file__).parent / "assets"
+_LOGO_PATH  = _ASSETS_DIR / "logo.png"
+_BANNER_PATH = _ASSETS_DIR / "banner.png"
 
 # ── Page configuration (MUST be first Streamlit call) ────────────────────────
 st.set_page_config(
@@ -393,17 +409,20 @@ def render_sidebar() -> tuple[str, str]:
         tuple: (selected_language, selected_mode)
     """
     with st.sidebar:
-        # Logo block
-        st.markdown(
-            """
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-icon">🧑‍🏫</div>
-                <div class="sidebar-logo-text">CodeExplain</div>
-                <div class="sidebar-logo-sub">Plain-English Code Tutor</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Logo block — use real logo.png if available, else emoji fallback
+        if _LOGO_PATH.exists():
+            st.image(str(_LOGO_PATH), use_container_width=True)
+        else:
+            st.markdown(
+                """
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">🧑‍🏫</div>
+                    <div class="sidebar-logo-text">CodeExplain</div>
+                    <div class="sidebar-logo-sub">Plain-English Code Tutor</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         # Language selector
         st.markdown(
@@ -479,11 +498,16 @@ def render_sidebar() -> tuple[str, str]:
 
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
-        # Version info
+        # Version + API key diagnostic (shows only first 8 chars — never full key)
+        key_info: str = get_api_key_info()
         st.markdown(
-            """
+            f"""
             <div style="text-align:center; color:#484f58; font-size:0.75rem;">
                 v1.0.0 &nbsp;·&nbsp; Powered by Gemini &nbsp;·&nbsp; 🇮🇳
+            </div>
+            <div style="text-align:center; color:#30363d; font-size:0.68rem; margin-top:0.4rem;
+                        font-family:'JetBrains Mono',monospace;">
+                Key: {key_info}
             </div>
             """,
             unsafe_allow_html=True,
@@ -494,21 +518,24 @@ def render_sidebar() -> tuple[str, str]:
 
 # ── Hero Banner ───────────────────────────────────────────────────────────────
 def render_hero() -> None:
-    """Render the top hero banner with title and subtitle."""
-    st.markdown(
-        """
-        <div class="hero-banner">
-            <div class="hero-badge">AI-Powered · Google Gemini</div>
-            <h1 class="hero-title">🧑‍🏫 CodeExplain</h1>
-            <p class="hero-subtitle">
-                Paste any code snippet and instantly get a plain-English explanation,
-                complexity analysis, improvement suggestions, and an interactive quiz —
-                all powered by Google Gemini AI.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    """Render the top hero banner — uses banner.png if present, else CSS fallback."""
+    if _BANNER_PATH.exists():
+        st.image(str(_BANNER_PATH), use_container_width=True)
+    else:
+        st.markdown(
+            """
+            <div class="hero-banner">
+                <div class="hero-badge">AI-Powered · Google Gemini</div>
+                <h1 class="hero-title">🧑‍🏫 CodeExplain</h1>
+                <p class="hero-subtitle">
+                    Paste any code snippet and instantly get a plain-English explanation,
+                    complexity analysis, improvement suggestions, and an interactive quiz —
+                    all powered by Google Gemini AI.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ── Code Input Area ───────────────────────────────────────────────────────────
@@ -650,17 +677,156 @@ def render_output_placeholder() -> None:
 
 
 # ── Output Section (Filled) ───────────────────────────────────────────────────
-def render_filled_output(results: dict) -> None:
+def render_filled_output(results: dict[str, str]) -> None:
     """
-    Render filled analysis output after Gemini responds.
-    Called by Module 4 — stub only here.
+    Render the five analysis sections returned by run_explanation().
+
+    Each section is displayed inside an auto-expanded expander so the user
+    can collapse sections they are not interested in.
 
     Args:
-        results: Dictionary with keys matching each output section.
+        results (dict[str, str]): Parsed sections from the explain pipeline.
+                                  Keys are the SECTION_* constants from
+                                  features/explain.py.
     """
-    # This function is intentionally left as a stub.
-    # Full implementation is added in the Features module.
-    st.info("Full output rendering will be connected in Module 4.", icon="🔧")
+    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-label">📊 &nbsp;Analysis Results</p>',
+        unsafe_allow_html=True,
+    )
+
+    sections_config: list[tuple[str, str, str]] = [
+        ("📖", "Summary",                  SECTION_SUMMARY),
+        ("🔍", "Line-by-Line Explanation", SECTION_LINE_BY_LINE),
+        ("⏱️", "Time Complexity",           SECTION_TIME),
+        ("💾", "Space Complexity",          SECTION_SPACE),
+        ("💡", "Suggested Improvements",   SECTION_IMPROVEMENTS),
+    ]
+
+    for icon, title, key in sections_config:
+        content: str = results.get(key, "Section not available.")
+        with st.expander(f"{icon}  {title}", expanded=True):
+            st.markdown(content)
+
+
+# ── Quiz Output ─────────────────────────────────────────────────────────────────
+def render_quiz_output(questions: list[dict]) -> None:
+    """
+    Render an interactive multiple-choice quiz from the parsed question list.
+
+    For each question the user sees:
+      - The question text
+      - Four radio button options (A / B / C / D)
+      - A "Submit Answer" button
+      - Correct / Incorrect feedback with the explanation
+
+    A running score is tracked in st.session_state["quiz_score"] and
+    displayed as a final summary after the last question.
+
+    Args:
+        questions (list[dict]): Parsed questions from features/quiz.parse_quiz().
+    """
+    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-label">🧠 &nbsp;Quiz</p>',
+        unsafe_allow_html=True,
+    )
+
+    total: int = len(questions)
+
+    # Initialise per-question answer tracking in session_state.
+    # "quiz_submitted" is a list of bools — True once the user submits that Q.
+    # "quiz_chosen"   is a list of the user's selected option letters.
+    # "quiz_score"    is the running count of correct answers.
+    if "quiz_submitted" not in st.session_state:
+        st.session_state["quiz_submitted"] = [False] * total
+    if "quiz_chosen" not in st.session_state:
+        st.session_state["quiz_chosen"] = [None] * total
+    if "quiz_score" not in st.session_state:
+        st.session_state["quiz_score"] = 0
+
+    for idx, q in enumerate(questions):
+        q_num: int = idx + 1
+        with st.expander(f"Question {q_num} of {total}", expanded=True):
+            st.markdown(f"**{q['question']}**")
+
+            # Build radio options in A / B / C / D order.
+            option_labels: list[str] = [
+                f"{letter}. {q['options'].get(letter, '')}"
+                for letter in ("A", "B", "C", "D")
+            ]
+
+            # Only allow selection before submission.
+            disabled: bool = st.session_state["quiz_submitted"][idx]
+
+            chosen_label = st.radio(
+                label=f"q{q_num}_radio",
+                options=option_labels,
+                index=None,
+                key=f"quiz_radio_{idx}",
+                disabled=disabled,
+                label_visibility="collapsed",
+            )
+
+            # Derive the chosen letter from the selected label.
+            chosen_letter: str | None = (
+                chosen_label[0] if chosen_label else None
+            )
+
+            if not disabled:
+                if st.button("Submit Answer", key=f"quiz_submit_{idx}"):
+                    if chosen_letter is None:
+                        st.warning("Please select an option before submitting.",
+                                   icon="⚠️")
+                    else:
+                        st.session_state["quiz_chosen"][idx] = chosen_letter
+                        st.session_state["quiz_submitted"][idx] = True
+                        if chosen_letter == q["answer"]:
+                            st.session_state["quiz_score"] += 1
+                        st.rerun()
+
+            # Show feedback after submission.
+            if st.session_state["quiz_submitted"][idx]:
+                user_ans: str = st.session_state["quiz_chosen"][idx] or ""
+                correct_ans: str = q["answer"]
+                if user_ans == correct_ans:
+                    st.success(f"✓ Correct! The answer is **{correct_ans}**.")
+                else:
+                    st.error(
+                        f"✗ Incorrect. You chose **{user_ans}**. "
+                        f"The correct answer is **{correct_ans}**."
+                    )
+                st.info(f"**Explanation:** {q['explanation']}")
+
+    # ── Final score (shown once all questions are submitted) ────────────────────
+    all_done: bool = all(st.session_state["quiz_submitted"][:total])
+    if all_done:
+        score: int = st.session_state["quiz_score"]
+        rating: str = (
+            "Excellent 🌟" if score == 5
+            else "Great 👍"   if score == 4
+            else "Good 👌"    if score == 3
+            else "Needs Practice 📚"
+        )
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding:1.5rem;
+                        background:#161b22; border:1px solid #30363d;
+                        border-radius:12px; margin-top:1rem;">
+                <div style="font-size:2rem; font-weight:700;
+                            background:linear-gradient(135deg,#58a6ff,#a371f7);
+                            -webkit-background-clip:text;
+                            -webkit-text-fill-color:transparent;">
+                    Score: {score} / {total}
+                </div>
+                <div style="color:#8b949e; font-size:1.1rem; margin-top:0.5rem;">
+                    {rating}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ── Footer ────────────────────────────────────────────────────────────────────
@@ -690,47 +856,97 @@ def main() -> None:
     # 1. Load global styles
     load_css()
 
-    # 2. Render sidebar — returns user selections
+    # 2. PENDING-CLEAR GUARD — must run before any widget is instantiated.
+    # Streamlit forbids writing to st.session_state[widget_key] after the
+    # widget has rendered in the same script run.  So we use a flag:
+    # the Clear button sets "_clear_pending" = True and calls st.rerun().
+    # On the very next run this block fires first, clears the text-area
+    # state before render_code_input() creates the widget, then deletes
+    # the flag so it never fires again.
+    if st.session_state.get("_clear_pending"):
+        st.session_state["code_input"] = ""
+        del st.session_state["_clear_pending"]
+
+    # 3. Render sidebar — returns user selections
     language, mode = render_sidebar()
 
-    # 3. Hero banner
+    # 4. Hero banner
     render_hero()
 
-    # 4. Code input section
+    # 5. Code input section
     st.markdown(
         '<p class="section-label">✏️ &nbsp;Code Editor</p>',
         unsafe_allow_html=True,
     )
     code = render_code_input(language)
 
-    # 5. Action buttons
+    # 6. Action buttons
     explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
 
-    # 6. Handle Clear button
+    # 7. Handle Clear button — set a flag then rerun so the guard above
+    # can safely clear the widget key before it is next instantiated.
     if clear_clicked:
-        st.session_state["code_input"] = ""
+        st.session_state["_clear_pending"] = True
+        st.session_state.pop("explain_results", None)
+        st.session_state.pop("quiz_questions",  None)
+        st.session_state.pop("quiz_submitted",  None)
+        st.session_state.pop("quiz_chosen",     None)
+        st.session_state.pop("quiz_score",      None)
         st.rerun()
 
-    # 7. Handle Explain / Quiz buttons (Module 3+ will fill these in)
-    if explain_clicked or quiz_clicked:
+    # 7. Handle Explain Code button ──────────────────────────────────────────
+    if explain_clicked:
         if not code or not code.strip():
             st.warning(
-                "⚠️  Please paste some code before clicking the button.",
+                "Please paste some code before clicking Explain Code.",
                 icon="⚠️",
             )
         else:
-            action = "explanation" if explain_clicked else "quiz"
-            st.info(
-                f"✅  Code received ({len(code.splitlines())} lines · {language})  "
-                f"— **{action.capitalize()}** will be generated once the "
-                f"Gemini service is connected in Module 3.",
-                icon="🔧",
+            with st.spinner("Analysing your code with Gemini AI..."):
+                results: dict[str, str] = run_explanation(
+                    code=code, language=language
+                )
+            # Cache results in session_state so they survive widget reruns.
+            st.session_state["explain_results"] = results
+
+    # 8. Handle Quiz button ────────────────────────────────────────────
+    if quiz_clicked:
+        if not code or not code.strip():
+            st.warning(
+                "Please paste some code before clicking Generate Quiz.",
+                icon="⚠️",
             )
+        else:
+            with st.spinner("Generating quiz with Gemini AI..."):
+                quiz_result = run_quiz(code=code, language=language)
+            # Reset per-question tracking for the new quiz.
+            st.session_state.pop("quiz_submitted", None)
+            st.session_state.pop("quiz_chosen",    None)
+            st.session_state.pop("quiz_score",     None)
+            st.session_state["quiz_questions"] = quiz_result
 
-    # 8. Output area
-    render_output_placeholder()
+    # 9. Render Explain output ───────────────────────────────────────────────
+    explain_results = st.session_state.get("explain_results")
 
-    # 9. Footer
+    if explain_results:
+        if "error" in explain_results:
+            st.error(explain_results["error"], icon="🚨")
+            render_output_placeholder()
+        else:
+            render_filled_output(explain_results)
+    else:
+        render_output_placeholder()
+
+    # 10. Render Quiz output ───────────────────────────────────────────────
+    quiz_data = st.session_state.get("quiz_questions")
+
+    if quiz_data is not None:
+        if isinstance(quiz_data, dict) and "error" in quiz_data:
+            st.error(quiz_data["error"], icon="🚨")
+        elif isinstance(quiz_data, list) and quiz_data:
+            render_quiz_output(quiz_data)
+
+    # 11. Footer
     render_footer()
 
 
