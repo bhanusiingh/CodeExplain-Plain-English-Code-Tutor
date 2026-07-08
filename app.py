@@ -21,6 +21,11 @@ from features.explain import (
 )
 from features.quiz import run_quiz
 from services.gemini_service import get_api_key_info
+from utils.file_handler import (
+    read_uploaded_file,
+    detect_language,
+    supported_extensions,
+)
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
@@ -867,23 +872,76 @@ def main() -> None:
         st.session_state["code_input"] = ""
         del st.session_state["_clear_pending"]
 
-    # 3. Render sidebar — returns user selections
+    # 3. FILE-UPLOAD GUARD — applies loaded file content before widget renders.
+    # When a file is successfully read, we store its content and detected
+    # language under "_upload_pending" then call st.rerun().  On the very
+    # next run this guard fires first, writes code_input before the text_area
+    # widget is instantiated (safe), then deletes the flag.
+    if st.session_state.get("_upload_pending"):
+        pending = st.session_state.pop("_upload_pending")
+        st.session_state["code_input"] = pending["content"]
+        # Override the sidebar language selection to match the file type.
+        if pending["language"] not in ("Plain Text", ""):
+            st.session_state["language_select"] = pending["language"]
+
+    # 4. Render sidebar — returns user selections
     language, mode = render_sidebar()
 
-    # 4. Hero banner
+    # 5. Hero banner
     render_hero()
 
-    # 5. Code input section
+    # 6. File uploader (above the editor)
+    st.markdown(
+        '<p class="section-label">📁 &nbsp;Upload a File <span style="color:#484f58;font-size:0.8rem;font-weight:400;">(optional)</span></p>',
+        unsafe_allow_html=True,
+    )
+    uploaded_file = st.file_uploader(
+        label="Upload source code file",
+        type=[ext.lstrip(".") for ext in supported_extensions()],
+        key="file_uploader",
+        label_visibility="collapsed",
+        help="Supported: .py  .java  .cpp  .c  .js  — Max 1 MB",
+    )
+    if uploaded_file is not None:
+        content, error = read_uploaded_file(uploaded_file)
+        if error:
+            st.error(error, icon="🚨")
+        else:
+            detected_lang: str = detect_language(uploaded_file.name)
+            # Store under the pending flag; rerun so the guard above can
+            # write to code_input before the text_area widget exists.
+            st.session_state["_upload_pending"] = {
+                "content":  content,
+                "language": detected_lang,
+            }
+            # Clear stale AI results so output matches the new file.
+            st.session_state.pop("explain_results", None)
+            st.session_state.pop("quiz_questions",  None)
+            st.session_state.pop("quiz_submitted",  None)
+            st.session_state.pop("quiz_chosen",     None)
+            st.session_state.pop("quiz_score",      None)
+            lang_note = (
+                f"Language detected: **{detected_lang}**"
+                if detected_lang != "Plain Text"
+                else "Language could not be detected automatically."
+            )
+            st.success(
+                f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
+                icon="✅",
+            )
+            st.rerun()
+
+    # 7. Code input section
     st.markdown(
         '<p class="section-label">✏️ &nbsp;Code Editor</p>',
         unsafe_allow_html=True,
     )
     code = render_code_input(language)
 
-    # 6. Action buttons
+    # 8. Action buttons
     explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
 
-    # 7. Handle Clear button — set a flag then rerun so the guard above
+    # 9. Handle Clear button — set a flag then rerun so the guard above
     # can safely clear the widget key before it is next instantiated.
     if clear_clicked:
         st.session_state["_clear_pending"] = True
@@ -894,7 +952,7 @@ def main() -> None:
         st.session_state.pop("quiz_score",      None)
         st.rerun()
 
-    # 7. Handle Explain Code button ──────────────────────────────────────────
+    # 10. Handle Explain Code button ─────────────────────────────────────────
     if explain_clicked:
         if not code or not code.strip():
             st.warning(
