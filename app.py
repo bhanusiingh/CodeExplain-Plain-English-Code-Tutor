@@ -903,40 +903,58 @@ def main() -> None:
         help="Supported: .py  .java  .cpp  .c  .js  — Max 1 MB",
     )
     if uploaded_file is not None:
-        content, error = read_uploaded_file(uploaded_file)
-        if error:
-            st.error(error, icon="🚨")
-        else:
-            detected_lang: str = detect_language(uploaded_file.name)
-            # Store under the pending flag; rerun so the guard above can
-            # write to code_input before the text_area widget exists.
-            st.session_state["_upload_pending"] = {
-                "content":  content,
-                "language": detected_lang,
-            }
-            # Clear stale AI results so output matches the new file.
-            st.session_state.pop("explain_results", None)
-            st.session_state.pop("quiz_questions",  None)
-            st.session_state.pop("quiz_submitted",  None)
-            st.session_state.pop("quiz_chosen",     None)
-            st.session_state.pop("quiz_score",      None)
-            lang_note = (
-                f"Language detected: **{detected_lang}**"
-                if detected_lang != "Plain Text"
-                else "Language could not be detected automatically."
-            )
-            st.success(
-                f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
-                icon="✅",
-            )
-            st.rerun()
+        # ── Deduplication guard ────────────────────────────────────────────────
+        # st.file_uploader returns the file object on EVERY script run until
+        # the user removes it.  Without this guard the handler would call
+        # st.rerun() on every run (including runs triggered by button clicks)
+        # causing an infinite loop and discarding Explain / Quiz button events.
+        # We track the last processed filename and skip re-processing when the
+        # same file is still present in the widget.
+        already_processed: bool = (
+            uploaded_file.name == st.session_state.get("_last_upload_name", "")
+        )
+        if not already_processed:
+            content, error = read_uploaded_file(uploaded_file)
+            if error:
+                st.error(error, icon="🚨")
+            else:
+                detected_lang: str = detect_language(uploaded_file.name)
+                # Mark this file as processed before the rerun so the guard
+                # above does not fire again for the same upload.
+                st.session_state["_last_upload_name"] = uploaded_file.name
+                # Store content for the pending guard to write before widgets render.
+                st.session_state["_upload_pending"] = {
+                    "content":  content,
+                    "language": detected_lang,
+                }
+                # Clear stale AI results so output matches the new file.
+                st.session_state.pop("explain_results", None)
+                st.session_state.pop("quiz_questions",  None)
+                st.session_state.pop("quiz_submitted",  None)
+                st.session_state.pop("quiz_chosen",     None)
+                st.session_state.pop("quiz_score",      None)
+                lang_note = (
+                    f"Language detected: **{detected_lang}**"
+                    if detected_lang != "Plain Text"
+                    else "Language could not be detected automatically."
+                )
+                st.success(
+                    f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
+                    icon="✅",
+                )
+                st.rerun()
 
     # 7. Code input section
     st.markdown(
         '<p class="section-label">✏️ &nbsp;Code Editor</p>',
         unsafe_allow_html=True,
     )
-    code = render_code_input(language)
+    render_code_input(language)
+    # Use session_state as the source of truth.
+    # render_code_input() returns only what the user typed in the current
+    # interaction; session_state["code_input"] is the canonical value and
+    # already contains uploaded file content when the upload guard has run.
+    code: str = st.session_state.get("code_input", "")
 
     # 8. Action buttons
     explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
@@ -945,11 +963,14 @@ def main() -> None:
     # can safely clear the widget key before it is next instantiated.
     if clear_clicked:
         st.session_state["_clear_pending"] = True
-        st.session_state.pop("explain_results", None)
-        st.session_state.pop("quiz_questions",  None)
-        st.session_state.pop("quiz_submitted",  None)
-        st.session_state.pop("quiz_chosen",     None)
-        st.session_state.pop("quiz_score",      None)
+        st.session_state.pop("explain_results",   None)
+        st.session_state.pop("quiz_questions",    None)
+        st.session_state.pop("quiz_submitted",    None)
+        st.session_state.pop("quiz_chosen",       None)
+        st.session_state.pop("quiz_score",        None)
+        # Reset the upload deduplication key so the same file can be
+        # re-uploaded after the editor is cleared.
+        st.session_state.pop("_last_upload_name", None)
         st.rerun()
 
     # 10. Handle Explain Code button ─────────────────────────────────────────
