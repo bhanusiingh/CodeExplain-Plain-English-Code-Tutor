@@ -26,6 +26,11 @@ from utils.file_handler import (
     detect_language,
     supported_extensions,
 )
+from utils.helpers import (
+    generate_pdf,
+    generate_markdown,
+    format_export_text,
+)
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
@@ -712,6 +717,130 @@ def render_filled_output(results: dict[str, str]) -> None:
         content: str = results.get(key, "Section not available.")
         with st.expander(f"{icon}  {title}", expanded=True):
             st.markdown(content)
+
+    # Export buttons immediately below the analysis sections.
+    render_export_buttons(results)
+
+
+# ── Export Buttons ───────────────────────────────────────────────────────────────
+def render_export_buttons(results: dict[str, str] | None = None) -> None:
+    """
+    Render the three export action buttons below Analysis Results.
+
+    Buttons:
+        • Download PDF      — uses generate_pdf()        from utils/helpers.py
+        • Download Markdown — uses generate_markdown()   from utils/helpers.py
+        • Copy Result       — uses format_export_text()  via st.components
+
+    When results is None or empty the buttons are disabled and a friendly
+    message is shown.  No exception is ever surfaced to the user.
+
+    Args:
+        results (dict[str, str] | None): Parsed explanation sections.
+    """
+    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-label">📤 &nbsp;Export Results</p>',
+        unsafe_allow_html=True,
+    )
+
+    has_results: bool = bool(results and isinstance(results, dict) and
+                             "error" not in results)
+
+    if not has_results:
+        st.info(
+            "Run **Explain Code** first to enable export options.",
+            icon="ℹ️",
+        )
+        return
+
+    # Gather context for exports.
+    language: str  = st.session_state.get("language_select", "Python")
+    code: str      = st.session_state.get("code_input", "")
+
+    col_pdf, col_md, col_clip = st.columns(3)
+
+    # ── PDF download ─────────────────────────────────────────────────────────
+    with col_pdf:
+        pdf_bytes = generate_pdf(results, language, code)
+        if pdf_bytes:
+            st.download_button(
+                label="📄 Download PDF",
+                data=pdf_bytes,
+                file_name="codeexplain_analysis.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+                key="export_pdf_btn",
+            )
+        else:
+            st.button(
+                "📄 Download PDF",
+                disabled=True,
+                use_container_width=True,
+                key="export_pdf_disabled",
+                help="PDF generation failed. Check that reportlab is installed.",
+            )
+
+    # ── Markdown download ───────────────────────────────────────────────────
+    with col_md:
+        md_text: str = generate_markdown(results, language, code)
+        st.download_button(
+            label="📝 Download Markdown",
+            data=md_text.encode("utf-8"),
+            file_name="codeexplain_analysis.md",
+            mime="text/markdown",
+            use_container_width=True,
+            key="export_md_btn",
+        )
+
+    # ── Clipboard copy ───────────────────────────────────────────────────────
+    with col_clip:
+        plain_text: str = format_export_text(results, language)
+
+        # Root-cause fix for UnicodeEncodeError
+        # ─────────────────────────────────────
+        # Streamlit serialises st.components.v1.html() content as a UTF-8
+        # protobuf string.  If we embed the explanation text (which may
+        # contain characters from the Gemini response, or surrogate-pair
+        # escape sequences like \ud83d\udccb) directly into the JS template
+        # literal, Streamlit crashes with:
+        #   UnicodeEncodeError: 'utf-8' codec can't encode characters:
+        #   surrogates not allowed
+        #
+        # Safe approach: encode the text as base64 in Python (result is
+        # pure 7-bit ASCII), pass that string to JavaScript, and let the
+        # browser decode it with atob().  No raw text is ever embedded in
+        # the HTML string at all.
+        import base64 as _b64
+        # errors="replace" strips any lone surrogates the API may have returned
+        safe_bytes: bytes = plain_text.encode("utf-8", errors="replace")
+        b64_payload: str  = _b64.b64encode(safe_bytes).decode("ascii")
+
+        copy_js: str = (
+            "<script>\n"
+            "function copyToClipboard() {\n"
+            f"  var b64 = '{b64_payload}';\n"
+            "  var bin = atob(b64);\n"
+            "  var bytes = new Uint8Array(bin.length);\n"
+            "  for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }\n"
+            "  var text = new TextDecoder('utf-8').decode(bytes);\n"
+            "  navigator.clipboard.writeText(text)\n"
+            "    .then(function() {\n"
+            "      var btn = document.getElementById('clipBtn');\n"
+            "      btn.innerText = 'Copied!';\n"
+            "      setTimeout(function() { btn.innerText = 'Copy Result'; }, 2000);\n"
+            "    })\n"
+            "    .catch(function(err) { alert('Copy failed: ' + err); });\n"
+            "}\n"
+            "</script>\n"
+            "<button id=\"clipBtn\" onclick=\"copyToClipboard()\" "
+            "style=\"width:100%;padding:0.45rem 1rem;"
+            "background:#21262d;color:#c9d1d9;"
+            "border:1px solid #30363d;border-radius:6px;"
+            "font-size:0.875rem;cursor:pointer;font-family:inherit;\">"
+            "Copy Result</button>"
+        )
+        st.components.v1.html(copy_js, height=42)
 
 
 # ── Quiz Output ─────────────────────────────────────────────────────────────────
