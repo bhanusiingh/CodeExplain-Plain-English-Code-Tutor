@@ -31,6 +31,15 @@ from utils.helpers import (
     generate_markdown,
     format_export_text,
 )
+from utils.history_manager import (
+    init_history,
+    save_history,
+    load_history,
+    restore_history,
+    delete_history,
+    clear_history,
+    group_history_by_date,
+)
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
@@ -505,6 +514,99 @@ def render_sidebar() -> tuple[str, str]:
             """,
             unsafe_allow_html=True,
         )
+
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+
+        # ── Session History ───────────────────────────────────────────
+        st.markdown(
+            '<p class="section-label">📜 &nbsp;History</p>',
+            unsafe_allow_html=True,
+        )
+
+        # + New Chat button
+        if st.button(
+            "+ New Chat",
+            key="new_chat_btn",
+            use_container_width=True,
+            help="Clear editor and results without erasing history",
+        ):
+            st.session_state["_clear_pending"] = True
+            st.session_state.pop("explain_results",   None)
+            st.session_state.pop("quiz_questions",    None)
+            st.session_state.pop("quiz_submitted",    None)
+            st.session_state.pop("quiz_chosen",       None)
+            st.session_state.pop("quiz_score",        None)
+            st.session_state.pop("_last_upload_name", None)
+            st.rerun()
+
+        st.markdown(
+            '<hr style="border-color:#21262d;margin:0.5rem 0;">',
+            unsafe_allow_html=True,
+        )
+
+        history = load_history()
+        if not history:
+            st.markdown(
+                '<p style="color:#484f58;font-size:0.8rem;padding:0.4rem 0;">'  
+                'No history yet. Explain some code to get started.</p>',
+                unsafe_allow_html=True,
+            )
+        else:
+            groups = group_history_by_date(history)
+            _LANG_COLORS: dict[str, str] = {
+                "Python": "#3572A5", "Java": "#b07219",
+                "JavaScript": "#f1e05a", "C++": "#f34b7d", "C": "#555555",
+            }
+            for group_label, items in groups.items():
+                st.markdown(
+                    f'<p style="color:#484f58;font-size:0.72rem;font-weight:600;'
+                    f'text-transform:uppercase;letter-spacing:0.05em;'
+                    f'margin:0.6rem 0 0.2rem 0;">{group_label}</p>',
+                    unsafe_allow_html=True,
+                )
+                for item in items:
+                    lang_color = _LANG_COLORS.get(item["language"], "#58a6ff")
+                    # Each history item: language badge + title button + delete
+                    col_title, col_del = st.columns([5, 1])
+                    with col_title:
+                        label = (
+                            f'<span style="display:inline-block;'
+                            f'background:{lang_color}22;color:{lang_color};'
+                            f'border-radius:3px;padding:0 4px;font-size:0.65rem;'
+                            f'font-weight:600;margin-right:4px;">'
+                            f'{item["language"][:2].upper()}</span>'
+                            f'{item["title"]}'
+                        )
+                        if st.button(
+                            item["title"],
+                            key=f"hist_{item['id']}",
+                            use_container_width=True,
+                            help=f"{item['language']} • {item['timestamp'].strftime('%H:%M')}",
+                        ):
+                            # Trigger restore on next run via pending flag
+                            st.session_state["_restore_pending"] = item["id"]
+                            st.rerun()
+                    with col_del:
+                        if st.button(
+                            "×",
+                            key=f"del_{item['id']}",
+                            help="Delete this entry",
+                        ):
+                            delete_history(item["id"])
+                            st.rerun()
+
+            st.markdown(
+                '<hr style="border-color:#21262d;margin:0.6rem 0;">',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "🗑️ Clear All History",
+                key="clear_hist_btn",
+                use_container_width=True,
+                help="Permanently delete all history items",
+            ):
+                clear_history()
+                st.rerun()
 
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
@@ -990,16 +1092,36 @@ def main() -> None:
     # 1. Load global styles
     load_css()
 
-    # 2. PENDING-CLEAR GUARD — must run before any widget is instantiated.
-    # Streamlit forbids writing to st.session_state[widget_key] after the
-    # widget has rendered in the same script run.  So we use a flag:
-    # the Clear button sets "_clear_pending" = True and calls st.rerun().
-    # On the very next run this block fires first, clears the text-area
-    # state before render_code_input() creates the widget, then deletes
-    # the flag so it never fires again.
+    # 1b. Initialise history (idempotent — safe to call every run)
+    init_history()
+
+    # 2. PENDING-CLEAR GUARD
     if st.session_state.get("_clear_pending"):
         st.session_state["code_input"] = ""
         del st.session_state["_clear_pending"]
+
+    # 2b. RESTORE GUARD — fires before any widget is instantiated.
+    # When the user clicks a history item the sidebar sets "_restore_pending"
+    # to the item id and calls st.rerun().  This guard reads the item and
+    # writes all state keys (code_input, language_select, explain_results,
+    # quiz_questions, quiz tracking) before widgets render.
+    if st.session_state.get("_restore_pending"):
+        item_id: str = st.session_state.pop("_restore_pending")
+        item = restore_history(item_id)
+        if item:
+            st.session_state["code_input"]    = item["code"]
+            st.session_state["explain_results"] = item["analysis"]
+            st.session_state["quiz_questions"]   = item["quiz"]
+            # Reset quiz tracking so the restored quiz starts fresh
+            st.session_state.pop("quiz_submitted", None)
+            st.session_state.pop("quiz_chosen",    None)
+            st.session_state.pop("quiz_score",     None)
+            # Restore language selector if item has a known language
+            if item.get("language"):
+                st.session_state["language_selector"] = item["language"]
+            # Restore uploaded filename hint
+            if item.get("filename"):
+                st.session_state["_last_upload_name"] = item["filename"]
 
     # 3. FILE-UPLOAD GUARD — applies loaded file content before widget renders.
     # When a file is successfully read, we store its content and detected
@@ -1012,6 +1134,53 @@ def main() -> None:
         # Override the sidebar language selection to match the file type.
         if pending["language"] not in ("Plain Text", ""):
             st.session_state["language_select"] = pending["language"]
+
+    # 3b. PRE-RENDER API / HISTORY HANDLING — runs before render_sidebar()
+    # to ensure successful Gemini responses are saved to history immediately
+    # on the trigger run, allowing the sidebar to display them without delay.
+    explain_warning: bool = False
+    quiz_warning: bool = False
+
+    pre_code: str = st.session_state.get("code_input", "")
+    pre_lang: str = st.session_state.get("language_selector", "Python")
+
+    if st.session_state.get("btn_explain"):
+        if not pre_code or not pre_code.strip():
+            explain_warning = True
+        else:
+            with st.spinner("Analysing your code with Gemini AI..."):
+                results = run_explanation(code=pre_code, language=pre_lang)
+            st.session_state["explain_results"] = results
+            if "error" not in results:
+                save_history(
+                    code=pre_code,
+                    language=pre_lang,
+                    analysis=results,
+                    quiz=st.session_state.get("quiz_questions"),
+                    filename=st.session_state.get("_last_upload_name", ""),
+                    active_view="explain",
+                )
+
+    if st.session_state.get("btn_quiz"):
+        if not pre_code or not pre_code.strip():
+            quiz_warning = True
+        else:
+            with st.spinner("Generating quiz with Gemini AI..."):
+                quiz_result = run_quiz(code=pre_code, language=pre_lang)
+            # Reset per-question tracking for the new quiz.
+            st.session_state.pop("quiz_submitted", None)
+            st.session_state.pop("quiz_chosen",    None)
+            st.session_state.pop("quiz_score",     None)
+            st.session_state["quiz_questions"] = quiz_result
+            if isinstance(quiz_result, list) and quiz_result:
+                save_history(
+                    code=pre_code,
+                    language=pre_lang,
+                    analysis=st.session_state.get("explain_results"),
+                    quiz=quiz_result,
+                    filename=st.session_state.get("_last_upload_name", ""),
+                    active_view="quiz",
+                )
 
     # 4. Render sidebar — returns user selections
     language, mode = render_sidebar()
@@ -1102,36 +1271,17 @@ def main() -> None:
         st.session_state.pop("_last_upload_name", None)
         st.rerun()
 
-    # 10. Handle Explain Code button ─────────────────────────────────────────
-    if explain_clicked:
-        if not code or not code.strip():
-            st.warning(
-                "Please paste some code before clicking Explain Code.",
-                icon="⚠️",
-            )
-        else:
-            with st.spinner("Analysing your code with Gemini AI..."):
-                results: dict[str, str] = run_explanation(
-                    code=code, language=language
-                )
-            # Cache results in session_state so they survive widget reruns.
-            st.session_state["explain_results"] = results
-
-    # 8. Handle Quiz button ────────────────────────────────────────────
-    if quiz_clicked:
-        if not code or not code.strip():
-            st.warning(
-                "Please paste some code before clicking Generate Quiz.",
-                icon="⚠️",
-            )
-        else:
-            with st.spinner("Generating quiz with Gemini AI..."):
-                quiz_result = run_quiz(code=code, language=language)
-            # Reset per-question tracking for the new quiz.
-            st.session_state.pop("quiz_submitted", None)
-            st.session_state.pop("quiz_chosen",    None)
-            st.session_state.pop("quiz_score",     None)
-            st.session_state["quiz_questions"] = quiz_result
+    # 10. Handle Warnings from Pre-render Stage
+    if explain_warning:
+        st.warning(
+            "Please paste some code before clicking Explain Code.",
+            icon="⚠️",
+        )
+    if quiz_warning:
+        st.warning(
+            "Please paste some code before clicking Generate Quiz.",
+            icon="⚠️",
+        )
 
     # 9. Render Explain output ───────────────────────────────────────────────
     explain_results = st.session_state.get("explain_results")
