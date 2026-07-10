@@ -1,104 +1,186 @@
-# CodeExplain — Plain-English Code Tutor 🧑‍🏫
+# 🧠 CodeExplain — Plain-English Code Tutor
 
-> An AI-powered Streamlit application that explains source code in simple English using Google's Gemini API.
+> An AI-powered educational web application that transforms complex source code into beginner-friendly explanations, interactive quizzes, and structured learning guidance using Google's Gemini AI.
 
----
-
-## ✨ Features
-
-| Feature | Description |
-|---|---|
-| 📖 **Plain-English Summary** | Understand what the code does at a glance |
-| 🔍 **Line-by-Line Explanation** | Every line explained in beginner-friendly language |
-| ⏱️ **Time Complexity** | Big-O analysis of algorithms |
-| 💾 **Space Complexity** | Memory usage analysis |
-| 💡 **Suggested Improvements** | Actionable tips to write better code |
-| 🧠 **Quiz Generator** | Test your understanding of the submitted code |
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.45-red)
+![Gemini](https://img.shields.io/badge/Google-Gemini_AI-orange)
+![License](https://img.shields.io/badge/License-Educational-green)
 
 ---
 
-## 🛠️ Tech Stack
+# ✨ Features
 
-- **Python 3.12+**
-- **Streamlit** — UI framework
-- **Google Gemini API** — AI backbone
-- **python-dotenv** — Environment variable management
-- **Pygments** — Syntax highlighting
-- **Markdown** — Formatted output rendering
-- **ReportLab** — PDF export *(coming soon)*
+## 📖 AI Code Explanation
+
+- Plain-English Summary
+- Line-by-Line Explanation
+- Time Complexity Analysis
+- Space Complexity Analysis
+- Suggested Improvements
 
 ---
 
-## 📁 Project Structure
+## 🎓 Learning Assistant
+
+After every explanation the AI also generates:
+
+- 📚 Concepts Used
+- 📖 Prerequisites
+- 🎯 Difficulty Level
+- 💼 Interview Questions
+- ➡ Recommended Next Topic
+
+---
+
+## 🧠 Quiz Generator
+
+Generate an AI-powered multiple-choice quiz based on the uploaded code.
+
+Features include:
+
+- Interactive MCQs
+- Instant scoring
+- Correct answer feedback
+- Beginner-friendly explanations
+
+---
+
+## 📂 File Upload
+
+Upload source code directly.
+
+Supported languages:
+
+- Python
+- Java
+- C
+- C++
+- JavaScript
+
+Automatic language detection is performed based on the uploaded file.
+
+---
+
+## 🕘 Session History
+
+- Save previous explanations
+- Save quizzes
+- Restore previous sessions instantly
+- Delete individual history
+- Clear history
+
+(No database required — current session only.)
+
+---
+
+## 📤 Export
+
+Export explanations as:
+
+- PDF
+- Markdown
+
+---
+
+## 🛡 Production Features
+
+- Robust Gemini API error handling
+- Upload validation
+- Duplicate request prevention
+- Duplicate history prevention
+- Friendly user messages
+- Session cleanup
+- Processing lock during AI requests
+
+---
+
+# 🛠 Tech Stack
+
+- Python 3.12
+- Streamlit
+- Google Gemini API
+- python-dotenv
+- ReportLab
+- Markdown
+- Pygments
+
+---
+
+# 📁 Project Structure
 
 ```
 CodeExplain-Plain-English-Code-Tutor/
+
 │
-├── app.py                  # Streamlit entry point
-├── requirements.txt        # Python dependencies
-├── .env.example            # Environment variable template
-├── .gitignore
+├── app.py
+├── requirements.txt
 ├── README.md
+├── .env.example
+├── .gitignore
 │
-├── assets/                 # Logo, banner images
-│
-├── services/
-│   ├── gemini_service.py   # Gemini API client
-│   └── prompts.py          # Prompt templates
+├── assets/
 │
 ├── features/
-│   ├── explain.py          # Code explanation feature
-│   ├── complexity.py       # Complexity analysis
-│   ├── quiz.py             # Quiz generation
-│   └── suggestions.py      # Improvement suggestions
+│   ├── explain.py
+│   ├── quiz.py
+│   └── learning.py
+│
+├── services/
+│   ├── gemini_service.py
+│   └── prompts.py
 │
 └── utils/
-    ├── helpers.py          # General utilities
-    └── file_handler.py     # File upload handling
+    ├── file_handler.py
+    ├── helpers.py
+    └── history_manager.py
 ```
 
 ---
 
-## 🚀 Getting Started
+# 🚀 Installation
 
-### 1. Clone the repository
+Clone the repository
 
 ```bash
 git clone https://github.com/bhanusiingh/CodeExplain-Plain-English-Code-Tutor.git
+
 cd CodeExplain-Plain-English-Code-Tutor
 ```
 
-### 2. Create and activate a virtual environment
+Create a virtual environment
 
 ```bash
 python -m venv venv
+```
 
-# Windows
+Activate
+
+Windows
+
+```bash
 venv\Scripts\activate
+```
 
-# macOS / Linux
+Linux/macOS
+
+```bash
 source venv/bin/activate
 ```
 
-### 3. Install dependencies
+Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Set up your API key
+Create `.env`
 
-```bash
-# Copy the example file
-cp .env.example .env
-
-# Open .env and add your Gemini API key
-GEMINI_API_KEY=your_actual_key_here
+```env
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
-Get your free API key at: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-
-### 5. Run the application
+Run
 
 ```bash
 streamlit run app.py
@@ -106,26 +188,46 @@ streamlit run app.py
 
 ---
 
-## 🔐 Environment Variables
+# 📸 Screenshots
 
-| Variable | Description | Required |
-|---|---|---|
-| `GEMINI_API_KEY` | Your Google Gemini API key | ✅ Yes |
+> Screenshots will be updated after the upcoming Phase 2 UI redesign.
 
 ---
 
-## 📸 Screenshots
+# 🗺 Roadmap
 
-*Coming soon after UI module is complete.*
+## ✅ Phase 1 (Completed)
+
+- AI Code Explanation
+- Quiz Generator
+- Learning Assistant
+- File Upload
+- Session History
+- PDF Export
+- Markdown Export
+- Production Ready
+
+## 🚀 Phase 2 (Planned)
+
+- Modern UI Redesign
+- Inline File Upload
+- Analysis / Quiz View Switching
+- Google Authentication
+- Cloud History
+- Responsive Design
+- Enhanced Animations
+- Improved Theme System
 
 ---
 
-## 📄 License
+# 👨‍💻 Author
 
-This project is built for educational purposes as a college project.
+**Bhanu Pratap Singh**
+
+Built using **Python**, **Streamlit**, and **Google Gemini AI** as an educational project focused on helping beginners understand programming through AI-assisted explanations.
 
 ---
 
-## 👤 Author
+# ⭐ Support
 
-Built with ❤️ using Google Gemini and Streamlit.
+If you found this project useful, consider giving it a ⭐ on GitHub.
