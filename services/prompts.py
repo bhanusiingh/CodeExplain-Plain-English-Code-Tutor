@@ -152,7 +152,20 @@ def build_explanation_prompt(code: str, language: str) -> str:
         "For each improvement:\n"
         "  - State what the problem or limitation is.\n"
         "  - State what the beginner should do to fix or improve it.\n"
-        "Do not rewrite the full code. Short illustrative snippets are allowed."
+        "Do not rewrite the full code. Short illustrative snippets are allowed.\n\n"
+        "# Learning Assistant\n\n"
+        "Concepts Used:\n"
+        "- <list concepts used>\n\n"
+        "Prerequisites:\n"
+        "- <list prerequisites>\n\n"
+        "Difficulty:\n"
+        "<level and brief reasoning>\n\n"
+        "Interview Questions:\n"
+        "1. <question 1>\n"
+        "2. <question 2>\n"
+        "3. <question 3>\n\n"
+        "Next Topic:\n"
+        "<suggested next topic>"
     ).format(
         h_summary         = _H_SUMMARY,
         h_line_by_line    = _H_LINE_BY_LINE,

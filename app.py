@@ -40,6 +40,8 @@ from utils.history_manager import (
     clear_history,
     group_history_by_date,
 )
+import re
+from features.learning import parse_learning_assistant
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
@@ -820,6 +822,23 @@ def render_filled_output(results: dict[str, str]) -> None:
         with st.expander(f"{icon}  {title}", expanded=True):
             st.markdown(content)
 
+    # Render Learning Assistant if present
+    if "learning" in results and isinstance(results["learning"], dict):
+        learning_data = results["learning"]
+        with st.expander("🎓  Learning Assistant", expanded=True):
+            subsections = [
+                ("📚 Concepts Used", "concepts"),
+                ("📖 Prerequisites", "prerequisites"),
+                ("🎯 Difficulty", "difficulty"),
+                ("💼 Interview Questions", "interview_questions"),
+                ("➡ Next Topic", "next_topic"),
+            ]
+            for subtitle, subkey in subsections:
+                st.markdown("-----------------------------------")
+                st.markdown(f"**{subtitle}**")
+                st.markdown("-----------------------------------")
+                st.markdown(learning_data.get(subkey, "Information not available."))
+
     # Export buttons immediately below the analysis sections.
     render_export_buttons(results)
 
@@ -1150,6 +1169,21 @@ def main() -> None:
         else:
             with st.spinner("Analysing your code with Gemini AI..."):
                 results = run_explanation(code=pre_code, language=pre_lang)
+            
+            if "error" not in results:
+                # Extract Learning Assistant from improvements section
+                improvements_raw = results.get("improvements", "")
+                split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
+                parts = re.split(split_pattern, improvements_raw)
+                
+                learning_raw = ""
+                if len(parts) > 1:
+                    results["improvements"] = parts[0].strip()
+                    learning_raw = parts[1].strip()
+                
+                # Parse learning raw text and store in results
+                results["learning"] = parse_learning_assistant(learning_raw)
+
             st.session_state["explain_results"] = results
             if "error" not in results:
                 save_history(
