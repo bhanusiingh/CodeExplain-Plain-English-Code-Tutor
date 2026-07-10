@@ -539,6 +539,7 @@ def render_sidebar() -> tuple[str, str]:
             st.session_state.pop("quiz_chosen",       None)
             st.session_state.pop("quiz_score",        None)
             st.session_state.pop("_last_upload_name", None)
+            st.session_state.pop("file_uploader",     None)
             st.rerun()
 
         st.markdown(
@@ -731,23 +732,30 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
         tuple: (explain_clicked, quiz_clicked, clear_clicked)
     """
     col1, col2, col3 = st.columns([3, 3, 2])
+    is_processing = st.session_state.get("is_processing", False)
     with col1:
         explain_clicked = st.button(
             "⚡ Explain Code",
             key="btn_explain",
             use_container_width=True,
+            disabled=is_processing,
+            help="Analyze the code and generate a plain-English explanation, complexity, and suggestions",
         )
     with col2:
         quiz_clicked = st.button(
             "🧠 Generate Quiz",
             key="btn_quiz",
             use_container_width=True,
+            disabled=is_processing,
+            help="Create a five-question interactive multiple-choice test based on the code",
         )
     with col3:
         clear_clicked = st.button(
             "🗑️ Clear",
             key="btn_clear",
             use_container_width=True,
+            disabled=is_processing,
+            help="Reset the code editor and clear the generated results",
         )
 
     return explain_clicked, quiz_clicked, clear_clicked
@@ -756,38 +764,48 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
 # ── Output Section (Placeholder) ──────────────────────────────────────────────
 def render_output_placeholder() -> None:
     """
-    Display placeholder output cards before any code is analysed.
-    Real output rendering is implemented in Module 4.
+    Display a clean empty state card before code is analysed.
     """
-    sections = [
-        ("📖", "Summary",                   "A plain-English overview of what the code does."),
-        ("🔍", "Line-by-Line Explanation",  "Each line explained in simple terms."),
-        ("⏱️", "Time Complexity",            "Big-O notation and performance analysis."),
-        ("💾", "Space Complexity",           "Memory usage breakdown."),
-        ("💡", "Suggested Improvements",    "Actionable tips to make the code better."),
-        ("🧠", "Quiz",                       "Test your understanding with AI-generated questions."),
-    ]
-
+    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="custom-divider"></div>',
+        """
+        <div style="padding: 2.5rem; text-align: center; background: #161b22; 
+                    border: 1px solid #21262d; border-radius: 12px; margin: 1rem 0;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📊</div>
+            <div style="font-weight: 600; color: #c9d1d9; font-size: 1.15rem; font-family: inherit;">
+                No Analysis Yet
+            </div>
+            <div style="color: #8b949e; font-size: 0.9rem; margin-top: 0.4rem; font-family: inherit; line-height: 1.5;">
+                Paste your code into the editor above and click <strong>Explain Code</strong> 
+                to see a plain-English explanation, complexity analysis, and improvement tips.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
+
+
+def render_quiz_placeholder() -> None:
+    """
+    Display a clean empty state card before a quiz is generated.
+    """
+    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="section-label">📊 &nbsp;Analysis Results</p>',
+        """
+        <div style="padding: 2.5rem; text-align: center; background: #161b22; 
+                    border: 1px solid #21262d; border-radius: 12px; margin: 1rem 0;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🧠</div>
+            <div style="font-weight: 600; color: #c9d1d9; font-size: 1.15rem; font-family: inherit;">
+                No Quiz Generated Yet
+            </div>
+            <div style="color: #8b949e; font-size: 0.9rem; margin-top: 0.4rem; font-family: inherit; line-height: 1.5;">
+                Click <strong>Generate Quiz</strong> below the editor to create an interactive 
+                multiple-choice test to check your understanding of the code.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-
-    for icon, title, description in sections:
-        with st.expander(f"{icon}  {title}", expanded=False):
-            st.markdown(
-                f"""
-                <div class="output-placeholder">
-                    <strong>{description}</strong><br><br>
-                    Paste your code above and click <em>Explain Code</em> to see results here.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
 
 # ── Output Section (Filled) ───────────────────────────────────────────────────
@@ -1117,6 +1135,7 @@ def main() -> None:
     # 2. PENDING-CLEAR GUARD
     if st.session_state.get("_clear_pending"):
         st.session_state["code_input"] = ""
+        st.session_state.pop("file_uploader", None)
         del st.session_state["_clear_pending"]
 
     # 2b. RESTORE GUARD — fires before any widget is instantiated.
@@ -1138,9 +1157,12 @@ def main() -> None:
             # Restore language selector if item has a known language
             if item.get("language"):
                 st.session_state["language_selector"] = item["language"]
-            # Restore uploaded filename hint
+            # Restore uploaded filename hint, or clear it if restoring non-file snippet
             if item.get("filename"):
                 st.session_state["_last_upload_name"] = item["filename"]
+            else:
+                st.session_state.pop("_last_upload_name", None)
+                st.session_state.pop("file_uploader",     None)
 
     # 3. FILE-UPLOAD GUARD — applies loaded file content before widget renders.
     # When a file is successfully read, we store its content and detected
@@ -1163,58 +1185,70 @@ def main() -> None:
     pre_code: str = st.session_state.get("code_input", "")
     pre_lang: str = st.session_state.get("language_selector", "Python")
 
-    if st.session_state.get("btn_explain"):
-        if not pre_code or not pre_code.strip():
-            explain_warning = True
-        else:
-            with st.spinner("Analysing your code with Gemini AI..."):
-                results = run_explanation(code=pre_code, language=pre_lang)
-            
-            if "error" not in results:
-                # Extract Learning Assistant from improvements section
-                improvements_raw = results.get("improvements", "")
-                split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
-                parts = re.split(split_pattern, improvements_raw)
-                
-                learning_raw = ""
-                if len(parts) > 1:
-                    results["improvements"] = parts[0].strip()
-                    learning_raw = parts[1].strip()
-                
-                # Parse learning raw text and store in results
-                results["learning"] = parse_learning_assistant(learning_raw)
+    # Prevent concurrent processing and duplicate click handling
+    if st.session_state.get("is_processing", False):
+        pass
+    else:
+        if st.session_state.get("btn_explain"):
+            if not pre_code or not pre_code.strip():
+                explain_warning = True
+            else:
+                st.session_state["is_processing"] = True
+                try:
+                    with st.spinner("Analysing your code with Gemini AI..."):
+                        results = run_explanation(code=pre_code, language=pre_lang)
+                    
+                    if "error" not in results:
+                        # Extract Learning Assistant from improvements section
+                        improvements_raw = results.get("improvements", "")
+                        split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
+                        parts = re.split(split_pattern, improvements_raw)
+                        
+                        learning_raw = ""
+                        if len(parts) > 1:
+                            results["improvements"] = parts[0].strip()
+                            learning_raw = parts[1].strip()
+                        
+                        # Parse learning raw text and store in results
+                        results["learning"] = parse_learning_assistant(learning_raw)
 
-            st.session_state["explain_results"] = results
-            if "error" not in results:
-                save_history(
-                    code=pre_code,
-                    language=pre_lang,
-                    analysis=results,
-                    quiz=st.session_state.get("quiz_questions"),
-                    filename=st.session_state.get("_last_upload_name", ""),
-                    active_view="explain",
-                )
+                    st.session_state["explain_results"] = results
+                    if "error" not in results:
+                        save_history(
+                            code=pre_code,
+                            language=pre_lang,
+                            analysis=results,
+                            quiz=st.session_state.get("quiz_questions"),
+                            filename=st.session_state.get("_last_upload_name", ""),
+                            active_view="explain",
+                        )
+                finally:
+                    st.session_state["is_processing"] = False
 
-    if st.session_state.get("btn_quiz"):
-        if not pre_code or not pre_code.strip():
-            quiz_warning = True
-        else:
-            with st.spinner("Generating quiz with Gemini AI..."):
-                quiz_result = run_quiz(code=pre_code, language=pre_lang)
-            # Reset per-question tracking for the new quiz.
-            st.session_state.pop("quiz_submitted", None)
-            st.session_state.pop("quiz_chosen",    None)
-            st.session_state.pop("quiz_score",     None)
-            st.session_state["quiz_questions"] = quiz_result
-            if isinstance(quiz_result, list) and quiz_result:
-                save_history(
-                    code=pre_code,
-                    language=pre_lang,
-                    analysis=st.session_state.get("explain_results"),
-                    quiz=quiz_result,
-                    filename=st.session_state.get("_last_upload_name", ""),
-                    active_view="quiz",
-                )
+        elif st.session_state.get("btn_quiz"):
+            if not pre_code or not pre_code.strip():
+                quiz_warning = True
+            else:
+                st.session_state["is_processing"] = True
+                try:
+                    with st.spinner("Generating quiz with Gemini AI..."):
+                        quiz_result = run_quiz(code=pre_code, language=pre_lang)
+                    # Reset per-question tracking for the new quiz.
+                    st.session_state.pop("quiz_submitted", None)
+                    st.session_state.pop("quiz_chosen",    None)
+                    st.session_state.pop("quiz_score",     None)
+                    st.session_state["quiz_questions"] = quiz_result
+                    if isinstance(quiz_result, list) and quiz_result:
+                        save_history(
+                            code=pre_code,
+                            language=pre_lang,
+                            analysis=st.session_state.get("explain_results"),
+                            quiz=quiz_result,
+                            filename=st.session_state.get("_last_upload_name", ""),
+                            active_view="quiz",
+                        )
+                finally:
+                    st.session_state["is_processing"] = False
 
     # 4. Render sidebar — returns user selections
     language, mode = render_sidebar()
@@ -1233,8 +1267,9 @@ def main() -> None:
         key="file_uploader",
         label_visibility="collapsed",
         help="Supported: .py  .java  .cpp  .c  .js  — Max 1 MB",
+        disabled=st.session_state.get("is_processing", False),
     )
-    if uploaded_file is not None:
+    if uploaded_file is not None and not st.session_state.get("is_processing", False):
         # ── Deduplication guard ────────────────────────────────────────────────
         # st.file_uploader returns the file object on EVERY script run until
         # the user removes it.  Without this guard the handler would call
@@ -1300,20 +1335,21 @@ def main() -> None:
         st.session_state.pop("quiz_submitted",    None)
         st.session_state.pop("quiz_chosen",       None)
         st.session_state.pop("quiz_score",        None)
-        # Reset the upload deduplication key so the same file can be
+        # Reset the upload deduplication key and widget so same file can be
         # re-uploaded after the editor is cleared.
         st.session_state.pop("_last_upload_name", None)
+        st.session_state.pop("file_uploader",     None)
         st.rerun()
 
     # 10. Handle Warnings from Pre-render Stage
     if explain_warning:
         st.warning(
-            "Please paste some code before clicking Explain Code.",
+            "Code Editor is empty. Please enter or upload some source code before requesting an explanation.",
             icon="⚠️",
         )
     if quiz_warning:
         st.warning(
-            "Please paste some code before clicking Generate Quiz.",
+            "Code Editor is empty. Please enter or upload some source code before generating a quiz.",
             icon="⚠️",
         )
 
@@ -1335,8 +1371,11 @@ def main() -> None:
     if quiz_data is not None:
         if isinstance(quiz_data, dict) and "error" in quiz_data:
             st.error(quiz_data["error"], icon="🚨")
+            render_quiz_placeholder()
         elif isinstance(quiz_data, list) and quiz_data:
             render_quiz_output(quiz_data)
+    else:
+        render_quiz_placeholder()
 
     # 11. Footer
     render_footer()

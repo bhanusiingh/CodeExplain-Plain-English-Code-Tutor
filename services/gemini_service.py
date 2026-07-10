@@ -163,11 +163,29 @@ def generate_response(prompt: str) -> str:
         print(f"  Message     :\n{exc_message}")
         print("=" * 60 + "\n")
 
-        # ── Build a UI-safe summary (no API key, no stack trace) ─────────────
+        # ── Build a UI-safe, user-friendly summary ────────────────────────────
+        exc_message_lower = exc_message.lower()
+        exc_type_lower = exc_type_name.lower()
+
+        if "connection" in exc_type_lower or "connection" in exc_message_lower or "dns" in exc_message_lower:
+            return "Network Error: Cannot connect to Gemini API. Please check your internet connection and try again."
+
+        if "timeout" in exc_type_lower or "deadline" in exc_type_lower or "timeout" in exc_message_lower:
+            return "Request Timeout: The request to Gemini API timed out. Please try again in a moment."
+
+        if status_code == 429:
+            return "Rate Limit Reached: The Gemini API rate limit has been exceeded. Please wait a moment before trying again."
+
+        if status_code == 403 or "unauthorized" in exc_message_lower or "invalid key" in exc_message_lower:
+            return "Invalid API Key: The provided GEMINI_API_KEY is unauthorized or invalid. Please check the key in your .env file."
+
+        if status_code == 400:
+            return "Invalid Request: The request parameters are invalid. Check if your code input is too large or contains illegal characters."
+
         status_part: str = (
             f" [HTTP {status_code}]" if status_code is not None else ""
         )
         return (
-            f"API Error{status_part} — {exc_type_name}: {exc_message}\n\n"
-            "Check the terminal / server log for the full diagnostic output."
+            f"API Error{status_part}: {exc_type_name} - {exc_message}\n\n"
+            "Please check your configuration or try again later."
         )

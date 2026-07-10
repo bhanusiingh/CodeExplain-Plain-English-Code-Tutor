@@ -114,6 +114,16 @@ def read_uploaded_file(uploaded_file) -> tuple[str, str]:
     if uploaded_file is None:
         return "", "No file was provided."
 
+    # ── Guard 1b: validate extension ──────────────────────────────────────────
+    import os
+    _, ext = os.path.splitext(uploaded_file.name.lower())
+    if ext not in _EXTENSION_LANGUAGE_MAP:
+        return (
+            "",
+            f"Unsupported File Type: The file '{uploaded_file.name}' has an unsupported extension. "
+            "Please upload only .py, .java, .cpp, .c, or .js files.",
+        )
+
     # ── Guard 2: read raw bytes ───────────────────────────────────────────────
     try:
         raw_bytes: bytes = uploaded_file.read()
