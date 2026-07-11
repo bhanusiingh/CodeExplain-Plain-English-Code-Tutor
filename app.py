@@ -154,27 +154,20 @@ def load_css() -> None:
             margin-bottom: 0.5rem;
         }
 
-        /* ── Code Editor Container ────────────────────────────────────────── */
-        .code-editor-wrapper {
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-            transition: border-color 0.2s ease;
+        /* ── Modern Workspace Container ── */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: #0d1117 !important;
+            border: 1px solid #30363d !important;
+            border-radius: 12px !important;
+            padding: 1.25rem !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24) !important;
         }
 
-        .code-editor-wrapper:hover {
-            border-color: #58a6ff;
-        }
-
-        .editor-topbar {
-            background: #161b22;
-            border-bottom: 1px solid #21262d;
-            padding: 0.6rem 1rem;
+        .editor-header-left {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            height: 100%;
         }
 
         .dot {
@@ -190,73 +183,111 @@ def load_css() -> None:
 
         .editor-filename {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            color: #8b949e;
+            font-size: 0.85rem;
+            color: #c9d1d9;
             margin-left: 0.5rem;
+            font-weight: 500;
         }
 
-        /* Style the textarea inside code editor */
-        .code-editor-wrapper textarea {
+        /* Seamless text area inside bordered container */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextArea"] textarea {
             font-family: 'JetBrains Mono', monospace !important;
-            font-size: 0.9rem !important;
-            background: #0d1117 !important;
+            font-size: 0.92rem !important;
+            background: #090d13 !important;
             color: #e6edf3 !important;
-            border: none !important;
-            border-radius: 0 !important;
+            border: 1px solid #21262d !important;
+            border-radius: 8px !important;
             padding: 1rem !important;
             line-height: 1.6 !important;
+            min-height: 320px !important;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextArea"] textarea:focus {
+            border-color: #58a6ff !important;
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.15) !important;
+        }
+
+        /* Compact File Uploader in Header */
+        [data-testid="stFileUploader"] {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        [data-testid="stFileUploader"] section {
+            padding: 0.2rem 0.5rem !important;
+            min-height: auto !important;
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+            border-radius: 6px !important;
+        }
+        [data-testid="stFileUploader"] section > div {
+            display: none !important; /* Hide drag/drop label */
+        }
+        [data-testid="stFileUploader"] button {
+            background: transparent !important;
+            color: #58a6ff !important;
+            border: none !important;
+            font-weight: 500 !important;
+            font-size: 0.82rem !important;
+            margin: 0 !important;
+            padding: 0.1rem 0.3rem !important;
+            width: auto !important;
+            height: auto !important;
         }
 
         /* ── Buttons ──────────────────────────────────────────────────────── */
         .stButton > button {
-            width: 100%;
-            padding: 0.75rem 1.5rem;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            letter-spacing: 0.02em;
+            width: 100% !important;
+            height: 44px !important;
+            padding: 0.5rem 1rem !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 0.92rem !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            transition: all 0.2s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 0.4rem !important;
+            border: none !important;
+            cursor: pointer !important;
         }
 
         /* Primary — Explain button */
         div[data-testid="column"]:nth-child(1) .stButton > button {
-            background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
-            color: #ffffff;
-            box-shadow: 0 4px 15px rgba(31, 111, 235, 0.35);
+            background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(31, 111, 235, 0.2) !important;
         }
 
         div[data-testid="column"]:nth-child(1) .stButton > button:hover {
-            background: linear-gradient(135deg, #388bfd 0%, #58a6ff 100%);
-            box-shadow: 0 6px 20px rgba(31, 111, 235, 0.5);
-            transform: translateY(-2px);
+            background: linear-gradient(135deg, #388bfd 0%, #58a6ff 100%) !important;
+            box-shadow: 0 6px 20px rgba(31, 111, 235, 0.3) !important;
+            transform: translateY(-1px) !important;
         }
 
         /* Secondary — Quiz button */
         div[data-testid="column"]:nth-child(2) .stButton > button {
-            background: linear-gradient(135deg, #6e40c9 0%, #a371f7 100%);
-            color: #ffffff;
-            box-shadow: 0 4px 15px rgba(110, 64, 201, 0.35);
+            background: linear-gradient(135deg, #6e40c9 0%, #a371f7 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(110, 64, 201, 0.2) !important;
         }
 
         div[data-testid="column"]:nth-child(2) .stButton > button:hover {
-            background: linear-gradient(135deg, #a371f7 0%, #d2a8ff 100%);
-            box-shadow: 0 6px 20px rgba(110, 64, 201, 0.5);
-            transform: translateY(-2px);
+            background: linear-gradient(135deg, #a371f7 0%, #d2a8ff 100%) !important;
+            box-shadow: 0 6px 20px rgba(110, 64, 201, 0.3) !important;
+            transform: translateY(-1px) !important;
         }
 
         /* Clear button */
         div[data-testid="column"]:nth-child(3) .stButton > button {
-            background: transparent;
-            color: #8b949e;
+            background: transparent !important;
+            color: #8b949e !important;
             border: 1px solid #30363d !important;
         }
 
         div[data-testid="column"]:nth-child(3) .stButton > button:hover {
-            background: #21262d;
-            color: #e6edf3;
+            background: #21262d !important;
+            color: #e6edf3 !important;
             border-color: #8b949e !important;
         }
 
@@ -415,6 +446,39 @@ def load_css() -> None:
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+        /* ── Workspace Uploader & File Chip Redesign ── */
+        .workspace-uploader [data-testid="stFileUploader"] section {
+            background: #090d13 !important;
+            border: 2px dashed #21262d !important;
+            border-radius: 8px !important;
+            padding: 1.5rem !important;
+            text-align: center !important;
+            transition: all 0.2s ease !important;
+        }
+        .workspace-uploader [data-testid="stFileUploader"] section:hover {
+            border-color: #58a6ff !important;
+            background: #0d1624 !important;
+        }
+        .workspace-uploader [data-testid="stFileUploader"] label {
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            color: #c9d1d9 !important;
+            margin-bottom: 0.5rem !important;
+            display: block !important;
+            text-align: center !important;
+        }
+        .workspace-uploader [data-testid="stFileUploader"] section > div {
+            display: block !important;
+        }
+
+        .file-chip-wrapper {
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 8px;
+            padding: 0.4rem 0.8rem;
+            margin-bottom: 1rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -424,7 +488,7 @@ def load_css() -> None:
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def render_sidebar() -> tuple[str, str]:
     """
-    Render the sidebar with logo, settings, and info.
+    Render the sidebar with logo, settings, history, and about.
 
     Returns:
         tuple: (selected_language, selected_mode)
@@ -445,7 +509,7 @@ def render_sidebar() -> tuple[str, str]:
                 unsafe_allow_html=True,
             )
 
-        # Language selector
+        # 1. Settings Section
         st.markdown(
             '<p class="section-label">⚙️ &nbsp;Settings</p>',
             unsafe_allow_html=True,
@@ -469,57 +533,7 @@ def render_sidebar() -> tuple[str, str]:
 
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
-        # Features info
-        st.markdown(
-            '<p class="section-label">✨ &nbsp;Features</p>',
-            unsafe_allow_html=True,
-        )
-        features = [
-            ("📖", "Plain-English Summary"),
-            ("🔍", "Line-by-Line Breakdown"),
-            ("⏱️", "Time Complexity"),
-            ("💾", "Space Complexity"),
-            ("💡", "Improvement Tips"),
-            ("🧠", "Quiz Generator"),
-        ]
-        pills_html = "".join(
-            f'<span class="feature-pill">{icon} {label}</span>'
-            for icon, label in features
-        )
-        st.markdown(pills_html, unsafe_allow_html=True)
-
-        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-
-        # How to use
-        st.markdown(
-            '<p class="section-label">📋 &nbsp;How to Use</p>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            """
-            <div class="sidebar-info-card">
-                <div class="sidebar-info-title">Step 1</div>
-                <div class="sidebar-info-value">Paste your code in the editor</div>
-            </div>
-            <div class="sidebar-info-card">
-                <div class="sidebar-info-title">Step 2</div>
-                <div class="sidebar-info-value">Select programming language</div>
-            </div>
-            <div class="sidebar-info-card">
-                <div class="sidebar-info-title">Step 3</div>
-                <div class="sidebar-info-value">Click <strong>Explain Code</strong> or <strong>Generate Quiz</strong></div>
-            </div>
-            <div class="sidebar-info-card">
-                <div class="sidebar-info-title">Step 4</div>
-                <div class="sidebar-info-value">Read the AI-generated analysis below</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-
-        # ── Session History ───────────────────────────────────────────
+        # 2. Session History Section
         st.markdown(
             '<p class="section-label">📜 &nbsp;History</p>',
             unsafe_allow_html=True,
@@ -568,18 +582,9 @@ def render_sidebar() -> tuple[str, str]:
                     unsafe_allow_html=True,
                 )
                 for item in items:
-                    lang_color = _LANG_COLORS.get(item["language"], "#58a6ff")
                     # Each history item: language badge + title button + delete
                     col_title, col_del = st.columns([5, 1])
                     with col_title:
-                        label = (
-                            f'<span style="display:inline-block;'
-                            f'background:{lang_color}22;color:{lang_color};'
-                            f'border-radius:3px;padding:0 4px;font-size:0.65rem;'
-                            f'font-weight:600;margin-right:4px;">'
-                            f'{item["language"][:2].upper()}</span>'
-                            f'{item["title"]}'
-                        )
                         if st.button(
                             item["title"],
                             key=f"hist_{item['id']}",
@@ -610,6 +615,48 @@ def render_sidebar() -> tuple[str, str]:
             ):
                 clear_history()
                 st.rerun()
+
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+
+        # 3. About Section
+        st.markdown(
+            '<p class="section-label">ℹ️ &nbsp;About</p>',
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("✨ Features & Overview", expanded=False):
+            features = [
+                ("📖", "Plain-English Summary"),
+                ("🔍", "Line-by-Line Breakdown"),
+                ("⏱️", "Time Complexity"),
+                ("💾", "Space Complexity"),
+                ("💡", "Improvement Tips"),
+                ("🧠", "Quiz Generator"),
+            ]
+            pills_html = "".join(
+                f'<span class="feature-pill">{icon} {label}</span>'
+                for icon, label in features
+            )
+            st.markdown(pills_html, unsafe_allow_html=True)
+
+        with st.expander("📋 User Guide", expanded=False):
+            st.markdown(
+                """
+                <div class="sidebar-info-card">
+                    <div class="sidebar-info-title">Step 1</div>
+                    <div class="sidebar-info-value">Paste code or upload a file</div>
+                </div>
+                <div class="sidebar-info-card">
+                    <div class="sidebar-info-title">Step 2</div>
+                    <div class="sidebar-info-value">Select language and click <strong>Explain Code</strong></div>
+                </div>
+                <div class="sidebar-info-card">
+                    <div class="sidebar-info-title">Step 3</div>
+                    <div class="sidebar-info-value">Try <strong>Generate Quiz</strong> to test memory</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
@@ -656,7 +703,7 @@ def render_hero() -> None:
 # ── Code Input Area ───────────────────────────────────────────────────────────
 def render_code_input(language: str) -> str:
     """
-    Render the code editor with a styled topbar.
+    Render the code editor.
 
     Args:
         language: Selected programming language (for filename hint).
@@ -664,29 +711,6 @@ def render_code_input(language: str) -> str:
     Returns:
         str: The code entered by the user.
     """
-    extension_map = {
-        "Python": "main.py",
-        "Java": "Main.java",
-        "JavaScript": "index.js",
-        "C++": "main.cpp",
-        "C": "main.c",
-    }
-    filename = extension_map.get(language, "code.txt")
-
-    # Styled editor topbar (decorative)
-    st.markdown(
-        f"""
-        <div class="code-editor-wrapper">
-            <div class="editor-topbar">
-                <span class="dot dot-red"></span>
-                <span class="dot dot-yellow"></span>
-                <span class="dot dot-green"></span>
-                <span class="editor-filename">{filename}</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     # Placeholder samples per language
     placeholder_map = {
@@ -716,7 +740,7 @@ def render_code_input(language: str) -> str:
     code = st.text_area(
         label="Code Editor",
         placeholder=placeholder_map.get(language, "Paste your code here..."),
-        height=320,
+        height=380,
         key="code_input",
         label_visibility="collapsed",
     )
@@ -731,11 +755,11 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     Returns:
         tuple: (explain_clicked, quiz_clicked, clear_clicked)
     """
-    col1, col2, col3 = st.columns([3, 3, 2])
+    col1, col2, col3 = st.columns([1, 1, 1])
     is_processing = st.session_state.get("is_processing", False)
     with col1:
         explain_clicked = st.button(
-            "⚡ Explain Code",
+            "✨ Explain Code",
             key="btn_explain",
             use_container_width=True,
             disabled=is_processing,
@@ -751,7 +775,7 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
         )
     with col3:
         clear_clicked = st.button(
-            "🗑️ Clear",
+            "🗑 Clear",
             key="btn_clear",
             use_container_width=True,
             disabled=is_processing,
@@ -1174,7 +1198,9 @@ def main() -> None:
         st.session_state["code_input"] = pending["content"]
         # Override the sidebar language selection to match the file type.
         if pending["language"] not in ("Plain Text", ""):
+            st.session_state["language_selector"] = pending["language"]
             st.session_state["language_select"] = pending["language"]
+        st.session_state["_detected_language"] = pending["language"]
 
     # 3b. PRE-RENDER API / HISTORY HANDLING — runs before render_sidebar()
     # to ensure successful Gemini responses are saved to history immediately
@@ -1256,75 +1282,127 @@ def main() -> None:
     # 5. Hero banner
     render_hero()
 
-    # 6. File uploader (above the editor)
-    st.markdown(
-        '<p class="section-label">📁 &nbsp;Upload a File <span style="color:#484f58;font-size:0.8rem;font-weight:400;">(optional)</span></p>',
-        unsafe_allow_html=True,
-    )
-    uploaded_file = st.file_uploader(
-        label="Upload source code file",
-        type=[ext.lstrip(".") for ext in supported_extensions()],
-        key="file_uploader",
-        label_visibility="collapsed",
-        help="Supported: .py  .java  .cpp  .c  .js  — Max 1 MB",
-        disabled=st.session_state.get("is_processing", False),
-    )
-    if uploaded_file is not None and not st.session_state.get("is_processing", False):
-        # ── Deduplication guard ────────────────────────────────────────────────
-        # st.file_uploader returns the file object on EVERY script run until
-        # the user removes it.  Without this guard the handler would call
-        # st.rerun() on every run (including runs triggered by button clicks)
-        # causing an infinite loop and discarding Explain / Quiz button events.
-        # We track the last processed filename and skip re-processing when the
-        # same file is still present in the widget.
-        already_processed: bool = (
-            uploaded_file.name == st.session_state.get("_last_upload_name", "")
-        )
-        if not already_processed:
-            content, error = read_uploaded_file(uploaded_file)
-            if error:
-                st.error(error, icon="🚨")
-            else:
-                detected_lang: str = detect_language(uploaded_file.name)
-                # Mark this file as processed before the rerun so the guard
-                # above does not fire again for the same upload.
-                st.session_state["_last_upload_name"] = uploaded_file.name
-                # Store content for the pending guard to write before widgets render.
-                st.session_state["_upload_pending"] = {
-                    "content":  content,
-                    "language": detected_lang,
-                }
-                # Clear stale AI results so output matches the new file.
-                st.session_state.pop("explain_results", None)
-                st.session_state.pop("quiz_questions",  None)
-                st.session_state.pop("quiz_submitted",  None)
-                st.session_state.pop("quiz_chosen",     None)
-                st.session_state.pop("quiz_score",      None)
-                lang_note = (
-                    f"Language detected: **{detected_lang}**"
-                    if detected_lang != "Plain Text"
-                    else "Language could not be detected automatically."
-                )
-                st.success(
-                    f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
-                    icon="✅",
-                )
-                st.rerun()
+    # 6. Redesigned Workspace Editor Card (Single Unified Container)
+    with st.container(border=True):
+        last_upload_name = st.session_state.get("_last_upload_name")
 
-    # 7. Code input section
-    st.markdown(
-        '<p class="section-label">✏️ &nbsp;Code Editor</p>',
-        unsafe_allow_html=True,
-    )
-    render_code_input(language)
-    # Use session_state as the source of truth.
-    # render_code_input() returns only what the user typed in the current
-    # interaction; session_state["code_input"] is the canonical value and
-    # already contains uploaded file content when the upload guard has run.
-    code: str = st.session_state.get("code_input", "")
+        if last_upload_name:
+            # ── FILE CHIP ──────────────────────────────────────────────────────
+            detected_lang = st.session_state.get("_detected_language")
+            if not detected_lang:
+                detected_lang = detect_language(last_upload_name)
+                st.session_state["_detected_language"] = detected_lang
 
-    # 8. Action buttons
-    explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
+            st.markdown('<div class="file-chip-wrapper">', unsafe_allow_html=True)
+            cols = st.columns([4, 2, 2, 1])
+            with cols[0]:
+                st.markdown(
+                    f"""
+                    <div style="display:flex; align-items:center; gap:0.5rem; height:100%; padding-top:0.4rem;">
+                        <span style="font-size:1.1rem; line-height:1;">📄</span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#e6edf3; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            {last_upload_name}
+                        </span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with cols[1]:
+                st.markdown(
+                    f"""
+                    <div style="display:flex; align-items:center; gap:0.3rem; height:100%; padding-top:0.4rem;">
+                        <span style="color:#2ec27e; font-size:0.8rem;">●</span>
+                        <span style="font-size:0.85rem; color:#8b949e; font-weight:500;">{detected_lang} Detected</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with cols[2]:
+                options = ["Python", "Java", "JavaScript", "C++", "C"]
+                current_lang = st.session_state.get("language_selector", "Python")
+                try:
+                    lang_index = options.index(current_lang)
+                except ValueError:
+                    lang_index = 0
+
+                override_val = st.selectbox(
+                    "Override Language",
+                    options=options,
+                    index=lang_index,
+                    key="override_language",
+                    label_visibility="collapsed",
+                    help="Manually override the detected language"
+                )
+                if override_val != current_lang:
+                    st.session_state["language_selector"] = override_val
+                    st.session_state["language_select"] = override_val
+                    st.rerun()
+            with cols[3]:
+                if st.button("✕", key="btn_remove_file", help="Remove uploaded file", use_container_width=True):
+                    st.session_state["_clear_pending"] = True
+                    st.session_state.pop("explain_results",   None)
+                    st.session_state.pop("quiz_questions",    None)
+                    st.session_state.pop("quiz_submitted",    None)
+                    st.session_state.pop("quiz_chosen",       None)
+                    st.session_state.pop("quiz_score",        None)
+                    st.session_state.pop("_last_upload_name", None)
+                    st.session_state.pop("file_uploader",     None)
+                    st.session_state.pop("_detected_language", None)
+                    st.session_state["code_input"] = ""
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        else:
+            # ── NO FILE STATE ──────────────────────────────────────────────────
+            st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
+            uploaded_file = st.file_uploader(
+                label="📎 Upload Code File (Drag & Drop)",
+                type=[ext.lstrip(".") for ext in supported_extensions()],
+                key="file_uploader",
+                disabled=st.session_state.get("is_processing", False),
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            if uploaded_file is not None and not st.session_state.get("is_processing", False):
+                # ── Deduplication guard ────────────────────────────────────────────────
+                already_processed: bool = (
+                    uploaded_file.name == st.session_state.get("_last_upload_name", "")
+                )
+                if not already_processed:
+                    content, error = read_uploaded_file(uploaded_file)
+                    if error:
+                        st.error(error, icon="🚨")
+                    else:
+                        detected_lang: str = detect_language(uploaded_file.name)
+                        st.session_state["_last_upload_name"] = uploaded_file.name
+                        st.session_state["_detected_language"] = detected_lang
+                        st.session_state["_upload_pending"] = {
+                            "content":  content,
+                            "language": detected_lang,
+                        }
+                        st.session_state.pop("explain_results", None)
+                        st.session_state.pop("quiz_questions",  None)
+                        st.session_state.pop("quiz_submitted",  None)
+                        st.session_state.pop("quiz_chosen",     None)
+                        st.session_state.pop("quiz_score",      None)
+                        lang_note = (
+                            f"Language detected: **{detected_lang}**"
+                            if detected_lang != "Plain Text"
+                            else "Language could not be detected automatically."
+                        )
+                        st.success(
+                            f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
+                            icon="✅",
+                        )
+                        st.rerun()
+
+        # 7. Render code input section
+        render_code_input(language)
+        # Use session_state as the source of truth.
+        code: str = st.session_state.get("code_input", "")
+
+        # 8. Action buttons
+        explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
 
     # 9. Handle Clear button — set a flag then rerun so the guard above
     # can safely clear the widget key before it is next instantiated.
@@ -1353,29 +1431,23 @@ def main() -> None:
             icon="⚠️",
         )
 
-    # 9. Render Explain output ───────────────────────────────────────────────
+    # 11. Render Explain output (only when exists, hiding empty states)
     explain_results = st.session_state.get("explain_results")
 
     if explain_results:
         if "error" in explain_results:
             st.error(explain_results["error"], icon="🚨")
-            render_output_placeholder()
         else:
             render_filled_output(explain_results)
-    else:
-        render_output_placeholder()
 
-    # 10. Render Quiz output ───────────────────────────────────────────────
+    # 12. Render Quiz output (only when exists, hiding empty states)
     quiz_data = st.session_state.get("quiz_questions")
 
     if quiz_data is not None:
         if isinstance(quiz_data, dict) and "error" in quiz_data:
             st.error(quiz_data["error"], icon="🚨")
-            render_quiz_placeholder()
         elif isinstance(quiz_data, list) and quiz_data:
             render_quiz_output(quiz_data)
-    else:
-        render_quiz_placeholder()
 
     # 11. Footer
     render_footer()
