@@ -96,7 +96,7 @@ def load_css() -> None:
             border: 1px solid #30363d;
             border-radius: 16px;
             padding: 2rem 2.5rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
             position: relative;
             overflow: hidden;
         }
@@ -472,12 +472,117 @@ def load_css() -> None:
             display: block !important;
         }
 
-        .file-chip-wrapper {
-            background: #161b22;
-            border: 1px solid #21262d;
-            border-radius: 8px;
-            padding: 0.4rem 0.8rem;
-            margin-bottom: 1rem;
+        /* Prevent default page-wide dimming during runs */
+        [data-testid="stAppViewContainer"] {
+            opacity: 1 !important;
+        }
+        [data-testid="stSidebar"] {
+            opacity: 1 !important;
+            filter: none !important;
+        }
+        .footer {
+            opacity: 1 !important;
+            filter: none !important;
+        }
+
+        /* Nested st.container overrides (File Chip status box) */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: #161b22 !important;
+            border: 1px solid #21262d !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 1rem !important;
+            margin-bottom: 1rem !important;
+            box-shadow: none !important;
+        }
+        
+        /* Flex alignment for nested columns inside the file chip container */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] {
+            display: flex !important;
+            align-items: center !important;
+            height: 100% !important;
+        }
+        
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(1) {
+            justify-content: flex-start !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(2) {
+            justify-content: flex-start !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(3) {
+            justify-content: center !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) {
+            justify-content: flex-end !important;
+        }
+
+        /* Center close button and prevent default streamlit button styles from expanding it */
+        button[key="btn_remove_file"] {
+            background: transparent !important;
+            color: #f85149 !important;
+            border: 1px solid #30363d !important;
+            height: 34px !important;
+            width: 34px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 0.95rem !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        button[key="btn_remove_file"]:hover {
+            background: rgba(248, 81, 73, 0.15) !important;
+            border-color: #f85149 !important;
+            color: #ff6b6b !important;
+        }
+
+        /* History list styles */
+        div.history-item-container {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 0.4rem !important;
+            margin-bottom: 0.2rem !important;
+        }
+        div.history-item-container div[data-testid="column"] {
+            display: flex !important;
+            align-items: center !important;
+            height: 28px !important;
+        }
+        /* Style title button */
+        div.history-item-container div[data-testid="column"]:nth-child(1) button {
+            background: transparent !important;
+            color: #c9d1d9 !important;
+            border: none !important;
+            text-align: left !important;
+            justify-content: flex-start !important;
+            font-size: 0.85rem !important;
+            font-weight: 400 !important;
+            height: 28px !important;
+            padding: 0 0.4rem !important;
+            margin: 0 !important;
+        }
+        div.history-item-container div[data-testid="column"]:nth-child(1) button:hover {
+            color: #58a6ff !important;
+            background: rgba(88, 166, 255, 0.1) !important;
+        }
+        /* Style delete button */
+        div.history-item-container div[data-testid="column"]:nth-child(2) button {
+            background: transparent !important;
+            color: #8b949e !important;
+            border: none !important;
+            font-size: 0.8rem !important;
+            height: 28px !important;
+            width: 28px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        div.history-item-container div[data-testid="column"]:nth-child(2) button:hover {
+            color: #f85149 !important;
+            background: rgba(248, 81, 73, 0.1) !important;
         }
         </style>
         """,
@@ -493,6 +598,13 @@ def render_sidebar() -> tuple[str, str]:
     Returns:
         tuple: (selected_language, selected_mode)
     """
+    # Ensure default values exist in session state
+    if "language_selector" not in st.session_state:
+        st.session_state["language_selector"] = "Python"
+        st.session_state["language_select"] = "Python"
+    if "mode_selector" not in st.session_state:
+        st.session_state["mode_selector"] = "Beginner"
+
     with st.sidebar:
         # Logo block — use real logo.png if available, else emoji fallback
         if _LOGO_PATH.exists():
@@ -514,21 +626,10 @@ def render_sidebar() -> tuple[str, str]:
             '<p class="section-label">⚙️ &nbsp;Settings</p>',
             unsafe_allow_html=True,
         )
-
-        selected_language = st.selectbox(
-            "Programming Language",
-            options=["Python", "Java", "JavaScript", "C++", "C"],
-            index=0,
-            help="Select the language of the code you are pasting.",
-            key="language_selector",
-        )
-
-        selected_mode = st.selectbox(
-            "Explanation Depth",
-            options=["Beginner", "Intermediate", "Advanced"],
-            index=0,
-            help="Choose how detailed the explanation should be.",
-            key="mode_selector",
+        st.markdown(
+            '<p style="color:#6e7681;font-size:0.78rem;margin:0 0 0.5rem 0;">'
+            'Configure explanation depth and override file options directly in the workspace.</p>',
+            unsafe_allow_html=True,
         )
 
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
@@ -570,23 +671,19 @@ def render_sidebar() -> tuple[str, str]:
             )
         else:
             groups = group_history_by_date(history)
-            _LANG_COLORS: dict[str, str] = {
-                "Python": "#3572A5", "Java": "#b07219",
-                "JavaScript": "#f1e05a", "C++": "#f34b7d", "C": "#555555",
-            }
             for group_label, items in groups.items():
                 st.markdown(
-                    f'<p style="color:#484f58;font-size:0.72rem;font-weight:600;'
-                    f'text-transform:uppercase;letter-spacing:0.05em;'
-                    f'margin:0.6rem 0 0.2rem 0;">{group_label}</p>',
+                    f'<p style="color:#8b949e;font-size:0.75rem;font-weight:700;'
+                    f'text-transform:uppercase;letter-spacing:0.08em;'
+                    f'margin:0.8rem 0 0.3rem 0;">{group_label}</p>',
                     unsafe_allow_html=True,
                 )
                 for item in items:
-                    # Each history item: language badge + title button + delete
+                    st.markdown('<div class="history-item-container">', unsafe_allow_html=True)
                     col_title, col_del = st.columns([5, 1])
                     with col_title:
                         if st.button(
-                            item["title"],
+                            f"📄 {item['title']}",
                             key=f"hist_{item['id']}",
                             use_container_width=True,
                             help=f"{item['language']} • {item['timestamp'].strftime('%H:%M')}",
@@ -596,12 +693,13 @@ def render_sidebar() -> tuple[str, str]:
                             st.rerun()
                     with col_del:
                         if st.button(
-                            "×",
+                            "✕",
                             key=f"del_{item['id']}",
                             help="Delete this entry",
                         ):
                             delete_history(item["id"])
                             st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
             st.markdown(
                 '<hr style="border-color:#21262d;margin:0.6rem 0;">',
@@ -675,7 +773,9 @@ def render_sidebar() -> tuple[str, str]:
             unsafe_allow_html=True,
         )
 
-    return selected_language, selected_mode
+    language = st.session_state.get("language_selector", "Python")
+    mode = st.session_state.get("mode_selector", "Beginner")
+    return language, mode
 
 
 # ── Hero Banner ───────────────────────────────────────────────────────────────
@@ -785,89 +885,39 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     return explain_clicked, quiz_clicked, clear_clicked
 
 
-# ── Output Section (Placeholder) ──────────────────────────────────────────────
-def render_output_placeholder() -> None:
+# ── Output Section (Tab Content) ──────────────────────────────────────────────
+def render_tab_content(active_tab: str, results: dict[str, str]) -> None:
     """
-    Display a clean empty state card before code is analysed.
+    Render active content tab for the explanation results.
     """
-    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div style="padding: 2.5rem; text-align: center; background: #161b22; 
-                    border: 1px solid #21262d; border-radius: 12px; margin: 1rem 0;">
-            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📊</div>
-            <div style="font-weight: 600; color: #c9d1d9; font-size: 1.15rem; font-family: inherit;">
-                No Analysis Yet
-            </div>
-            <div style="color: #8b949e; font-size: 0.9rem; margin-top: 0.4rem; font-family: inherit; line-height: 1.5;">
-                Paste your code into the editor above and click <strong>Explain Code</strong> 
-                to see a plain-English explanation, complexity analysis, and improvement tips.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    if active_tab == "Summary":
+        st.markdown('<p class="section-label">📖 &nbsp;Summary</p>', unsafe_allow_html=True)
+        st.markdown(results.get(SECTION_SUMMARY, "Summary not available."))
 
+    elif active_tab == "Breakdown":
+        st.markdown('<p class="section-label">🔍 &nbsp;Line-by-Line Explanation</p>', unsafe_allow_html=True)
+        st.markdown(results.get(SECTION_LINE_BY_LINE, "Breakdown not available."))
 
-def render_quiz_placeholder() -> None:
-    """
-    Display a clean empty state card before a quiz is generated.
-    """
-    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div style="padding: 2.5rem; text-align: center; background: #161b22; 
-                    border: 1px solid #21262d; border-radius: 12px; margin: 1rem 0;">
-            <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🧠</div>
-            <div style="font-weight: 600; color: #c9d1d9; font-size: 1.15rem; font-family: inherit;">
-                No Quiz Generated Yet
-            </div>
-            <div style="color: #8b949e; font-size: 0.9rem; margin-top: 0.4rem; font-family: inherit; line-height: 1.5;">
-                Click <strong>Generate Quiz</strong> below the editor to create an interactive 
-                multiple-choice test to check your understanding of the code.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    elif active_tab == "Complexity":
+        st.markdown('<p class="section-label">📊 &nbsp;Complexity Analysis</p>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            with st.container(border=True):
+                st.markdown("**⏱️ Time Complexity**")
+                st.markdown(results.get(SECTION_TIME, "Time complexity not available."))
+        with col2:
+            with st.container(border=True):
+                st.markdown("**💾 Space Complexity**")
+                st.markdown(results.get(SECTION_SPACE, "Space complexity not available."))
 
+    elif active_tab == "Suggestions":
+        st.markdown('<p class="section-label">💡 &nbsp;Suggested Improvements</p>', unsafe_allow_html=True)
+        st.markdown(results.get(SECTION_IMPROVEMENTS, "Suggestions not available."))
 
-# ── Output Section (Filled) ───────────────────────────────────────────────────
-def render_filled_output(results: dict[str, str]) -> None:
-    """
-    Render the five analysis sections returned by run_explanation().
-
-    Each section is displayed inside an auto-expanded expander so the user
-    can collapse sections they are not interested in.
-
-    Args:
-        results (dict[str, str]): Parsed sections from the explain pipeline.
-                                  Keys are the SECTION_* constants from
-                                  features/explain.py.
-    """
-    st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="section-label">📊 &nbsp;Analysis Results</p>',
-        unsafe_allow_html=True,
-    )
-
-    sections_config: list[tuple[str, str, str]] = [
-        ("📖", "Summary",                  SECTION_SUMMARY),
-        ("🔍", "Line-by-Line Explanation", SECTION_LINE_BY_LINE),
-        ("⏱️", "Time Complexity",           SECTION_TIME),
-        ("💾", "Space Complexity",          SECTION_SPACE),
-        ("💡", "Suggested Improvements",   SECTION_IMPROVEMENTS),
-    ]
-
-    for icon, title, key in sections_config:
-        content: str = results.get(key, "Section not available.")
-        with st.expander(f"{icon}  {title}", expanded=True):
-            st.markdown(content)
-
-    # Render Learning Assistant if present
-    if "learning" in results and isinstance(results["learning"], dict):
-        learning_data = results["learning"]
-        with st.expander("🎓  Learning Assistant", expanded=True):
+    elif active_tab == "Learning":
+        st.markdown('<p class="section-label">🎓 &nbsp;Learning Assistant</p>', unsafe_allow_html=True)
+        learning = results.get("learning")
+        if learning and isinstance(learning, dict):
             subsections = [
                 ("📚 Concepts Used", "concepts"),
                 ("📖 Prerequisites", "prerequisites"),
@@ -876,13 +926,11 @@ def render_filled_output(results: dict[str, str]) -> None:
                 ("➡ Next Topic", "next_topic"),
             ]
             for subtitle, subkey in subsections:
-                st.markdown("-----------------------------------")
-                st.markdown(f"**{subtitle}**")
-                st.markdown("-----------------------------------")
-                st.markdown(learning_data.get(subkey, "Information not available."))
-
-    # Export buttons immediately below the analysis sections.
-    render_export_buttons(results)
+                with st.container(border=True):
+                    st.markdown(f"**{subtitle}**")
+                    st.markdown(learning.get(subkey, "Information not available."))
+        else:
+            st.info("Learning insights are not available for this run.", icon="🎓")
 
 
 # ── Export Buttons ───────────────────────────────────────────────────────────────
@@ -1147,6 +1195,15 @@ def render_footer() -> None:
     )
 
 
+# ── Language Override Callback ───────────────────────────────────────────────
+def on_language_override() -> None:
+    """Callback to sync manual language override from the editor chip to sidebar selector."""
+    new_lang = st.session_state.get("override_language")
+    if new_lang:
+        st.session_state["language_selector"] = new_lang
+        st.session_state["language_select"] = new_lang
+
+
 # ── Main App ──────────────────────────────────────────────────────────────────
 def main() -> None:
     """Main application entry point."""
@@ -1174,6 +1231,11 @@ def main() -> None:
             st.session_state["code_input"]    = item["code"]
             st.session_state["explain_results"] = item["analysis"]
             st.session_state["quiz_questions"]   = item["quiz"]
+            # Set active tab depending on whether they saved explain or quiz
+            if item.get("active_view") == "quiz":
+                st.session_state["active_tab"] = "Quiz"
+            else:
+                st.session_state["active_tab"] = "Summary"
             # Reset quiz tracking so the restored quiz starts fresh
             st.session_state.pop("quiz_submitted", None)
             st.session_state.pop("quiz_chosen",    None)
@@ -1240,6 +1302,7 @@ def main() -> None:
 
                     st.session_state["explain_results"] = results
                     if "error" not in results:
+                        st.session_state["active_tab"] = "Summary"
                         save_history(
                             code=pre_code,
                             language=pre_lang,
@@ -1265,6 +1328,7 @@ def main() -> None:
                     st.session_state.pop("quiz_score",     None)
                     st.session_state["quiz_questions"] = quiz_result
                     if isinstance(quiz_result, list) and quiz_result:
+                        st.session_state["active_tab"] = "Quiz"
                         save_history(
                             code=pre_code,
                             language=pre_lang,
@@ -1283,6 +1347,21 @@ def main() -> None:
     render_hero()
 
     # 6. Redesigned Workspace Editor Card (Single Unified Container)
+    # Inject loading styles dynamically when is_processing is True
+    if st.session_state.get("is_processing", False):
+        st.markdown(
+            """
+            <style>
+            /* Dim the active workspace card container during run */
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                opacity: 0.65 !important;
+                pointer-events: none !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
     with st.container(border=True):
         last_upload_name = st.session_state.get("_last_upload_name")
 
@@ -1293,64 +1372,61 @@ def main() -> None:
                 detected_lang = detect_language(last_upload_name)
                 st.session_state["_detected_language"] = detected_lang
 
-            st.markdown('<div class="file-chip-wrapper">', unsafe_allow_html=True)
-            cols = st.columns([4, 2, 2, 1])
-            with cols[0]:
-                st.markdown(
-                    f"""
-                    <div style="display:flex; align-items:center; gap:0.5rem; height:100%; padding-top:0.4rem;">
-                        <span style="font-size:1.1rem; line-height:1;">📄</span>
-                        <span style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#e6edf3; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                            {last_upload_name}
-                        </span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            with cols[1]:
-                st.markdown(
-                    f"""
-                    <div style="display:flex; align-items:center; gap:0.3rem; height:100%; padding-top:0.4rem;">
-                        <span style="color:#2ec27e; font-size:0.8rem;">●</span>
-                        <span style="font-size:0.85rem; color:#8b949e; font-weight:500;">{detected_lang} Detected</span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-            with cols[2]:
-                options = ["Python", "Java", "JavaScript", "C++", "C"]
-                current_lang = st.session_state.get("language_selector", "Python")
-                try:
-                    lang_index = options.index(current_lang)
-                except ValueError:
-                    lang_index = 0
+            # Use st.container(border=True) to avoid any empty HTML divs rendering.
+            with st.container(border=True):
+                cols = st.columns([4, 2, 2, 1])
+                with cols[0]:
+                    st.markdown(
+                        f"""
+                        <div style="display:flex; align-items:center; gap:0.5rem; height:100%; padding-top:0.4rem;">
+                            <span style="font-size:1.1rem; line-height:1;">📄</span>
+                            <span style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#e6edf3; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                {last_upload_name}
+                            </span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with cols[1]:
+                    st.markdown(
+                        f"""
+                        <div style="display:flex; align-items:center; gap:0.3rem; height:100%; padding-top:0.4rem;">
+                            <span style="color:#2ec27e; font-size:0.8rem;">●</span>
+                            <span style="font-size:0.85rem; color:#8b949e; font-weight:500;">{detected_lang} Detected</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                with cols[2]:
+                    options = ["Python", "Java", "JavaScript", "C++", "C"]
+                    current_lang = st.session_state.get("language_selector", "Python")
+                    try:
+                        lang_index = options.index(current_lang)
+                    except ValueError:
+                        lang_index = 0
 
-                override_val = st.selectbox(
-                    "Override Language",
-                    options=options,
-                    index=lang_index,
-                    key="override_language",
-                    label_visibility="collapsed",
-                    help="Manually override the detected language"
-                )
-                if override_val != current_lang:
-                    st.session_state["language_selector"] = override_val
-                    st.session_state["language_select"] = override_val
-                    st.rerun()
-            with cols[3]:
-                if st.button("✕", key="btn_remove_file", help="Remove uploaded file", use_container_width=True):
-                    st.session_state["_clear_pending"] = True
-                    st.session_state.pop("explain_results",   None)
-                    st.session_state.pop("quiz_questions",    None)
-                    st.session_state.pop("quiz_submitted",    None)
-                    st.session_state.pop("quiz_chosen",       None)
-                    st.session_state.pop("quiz_score",        None)
-                    st.session_state.pop("_last_upload_name", None)
-                    st.session_state.pop("file_uploader",     None)
-                    st.session_state.pop("_detected_language", None)
-                    st.session_state["code_input"] = ""
-                    st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+                    st.selectbox(
+                        "Override Language",
+                        options=options,
+                        index=lang_index,
+                        key="override_language",
+                        label_visibility="collapsed",
+                        help="Manually override the detected language",
+                        on_change=on_language_override,
+                    )
+                with cols[3]:
+                    if st.button("✕", key="btn_remove_file", help="Remove uploaded file", use_container_width=True):
+                        st.session_state["_clear_pending"] = True
+                        st.session_state.pop("explain_results",   None)
+                        st.session_state.pop("quiz_questions",    None)
+                        st.session_state.pop("quiz_submitted",    None)
+                        st.session_state.pop("quiz_chosen",       None)
+                        st.session_state.pop("quiz_score",        None)
+                        st.session_state.pop("_last_upload_name", None)
+                        st.session_state.pop("file_uploader",     None)
+                        st.session_state.pop("_detected_language", None)
+                        st.session_state["code_input"] = ""
+                        st.rerun()
 
         else:
             # ── NO FILE STATE ──────────────────────────────────────────────────
@@ -1432,22 +1508,109 @@ def main() -> None:
         )
 
     # 11. Render Explain output (only when exists, hiding empty states)
+    # 11. Render Tabbed Results Workspace (only when any results exist)
     explain_results = st.session_state.get("explain_results")
-
-    if explain_results:
-        if "error" in explain_results:
-            st.error(explain_results["error"], icon="🚨")
-        else:
-            render_filled_output(explain_results)
-
-    # 12. Render Quiz output (only when exists, hiding empty states)
     quiz_data = st.session_state.get("quiz_questions")
 
-    if quiz_data is not None:
-        if isinstance(quiz_data, dict) and "error" in quiz_data:
-            st.error(quiz_data["error"], icon="🚨")
-        elif isinstance(quiz_data, list) and quiz_data:
-            render_quiz_output(quiz_data)
+    if explain_results or quiz_data:
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+
+        # Ensure active_tab is initialized
+        if "active_tab" not in st.session_state:
+            if explain_results:
+                st.session_state["active_tab"] = "Summary"
+            else:
+                st.session_state["active_tab"] = "Quiz"
+
+        active_tab = st.session_state["active_tab"]
+
+        # Render Tab bar
+        tab_indices = {
+            "Summary": 1,
+            "Breakdown": 2,
+            "Complexity": 3,
+            "Suggestions": 4,
+            "Learning": 5,
+            "Quiz": 6,
+        }
+        active_idx = tab_indices.get(active_tab, 1)
+
+        st.markdown(
+            f"""
+            <style>
+            /* Default styling for tab buttons */
+            div.tab-bar-container div[data-testid="column"] .stButton > button {{
+                background: #161b22 !important;
+                color: #8b949e !important;
+                border: 1px solid #21262d !important;
+                height: 40px !important;
+                font-size: 0.88rem !important;
+                font-weight: 500 !important;
+            }}
+            /* Highlight active tab button */
+            div.tab-bar-container div[data-testid="column"]:nth-child({active_idx}) .stButton > button {{
+                background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%) !important;
+                color: #ffffff !important;
+                border: none !important;
+                box-shadow: 0 4px 12px rgba(31, 111, 235, 0.2) !important;
+                font-weight: 600 !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown('<div class="tab-bar-container">', unsafe_allow_html=True)
+        tab_cols = st.columns(6)
+        with tab_cols[0]:
+            if st.button("📖 Summary", key="tab_summary", use_container_width=True):
+                st.session_state["active_tab"] = "Summary"
+                st.rerun()
+        with tab_cols[1]:
+            if st.button("🔍 Breakdown", key="tab_breakdown", use_container_width=True):
+                st.session_state["active_tab"] = "Breakdown"
+                st.rerun()
+        with tab_cols[2]:
+            if st.button("📊 Complexity", key="tab_complexity", use_container_width=True):
+                st.session_state["active_tab"] = "Complexity"
+                st.rerun()
+        with tab_cols[3]:
+            if st.button("💡 Suggestions", key="tab_suggestions", use_container_width=True):
+                st.session_state["active_tab"] = "Suggestions"
+                st.rerun()
+        with tab_cols[4]:
+            if st.button("🎓 Learning", key="tab_learning", use_container_width=True):
+                st.session_state["active_tab"] = "Learning"
+                st.rerun()
+        with tab_cols[5]:
+            if st.button("📝 Quiz", key="tab_quiz", use_container_width=True):
+                st.session_state["active_tab"] = "Quiz"
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div style="margin-top: 1.5rem;"></div>', unsafe_allow_html=True)
+
+        # Render Active Tab Content
+        if active_tab == "Quiz":
+            if quiz_data is not None:
+                if isinstance(quiz_data, dict) and "error" in quiz_data:
+                    st.error(quiz_data["error"], icon="🚨")
+                elif isinstance(quiz_data, list) and quiz_data:
+                    render_quiz_output(quiz_data)
+            else:
+                st.info("No quiz generated yet. Click **Generate Quiz** below the editor to create one.", icon="📝")
+        else:
+            if explain_results:
+                if "error" in explain_results:
+                    st.error(explain_results["error"], icon="🚨")
+                else:
+                    render_tab_content(active_tab, explain_results)
+            else:
+                st.info("No explanation generated yet. Click **Explain Code** below the editor to analyze the code.", icon="ℹ️")
+
+        # Export buttons (render ONLY if valid explanation results exist)
+        if explain_results and "error" not in explain_results:
+            render_export_buttons(explain_results)
 
     # 11. Footer
     render_footer()
