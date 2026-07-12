@@ -253,39 +253,39 @@ def load_css() -> None:
         }
 
         /* Primary — Explain button */
-        div[data-testid="column"]:nth-child(1) .stButton > button {
+        div[data-testid="column"]:nth-child(2) .stButton > button {
             background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%) !important;
             color: #ffffff !important;
             box-shadow: 0 4px 15px rgba(31, 111, 235, 0.2) !important;
         }
 
-        div[data-testid="column"]:nth-child(1) .stButton > button:hover {
+        div[data-testid="column"]:nth-child(2) .stButton > button:hover {
             background: linear-gradient(135deg, #388bfd 0%, #58a6ff 100%) !important;
             box-shadow: 0 6px 20px rgba(31, 111, 235, 0.3) !important;
             transform: translateY(-1px) !important;
         }
 
         /* Secondary — Quiz button */
-        div[data-testid="column"]:nth-child(2) .stButton > button {
+        div[data-testid="column"]:nth-child(3) .stButton > button {
             background: linear-gradient(135deg, #6e40c9 0%, #a371f7 100%) !important;
             color: #ffffff !important;
             box-shadow: 0 4px 15px rgba(110, 64, 201, 0.2) !important;
         }
 
-        div[data-testid="column"]:nth-child(2) .stButton > button:hover {
+        div[data-testid="column"]:nth-child(3) .stButton > button:hover {
             background: linear-gradient(135deg, #a371f7 0%, #d2a8ff 100%) !important;
             box-shadow: 0 6px 20px rgba(110, 64, 201, 0.3) !important;
             transform: translateY(-1px) !important;
         }
 
         /* Clear button */
-        div[data-testid="column"]:nth-child(3) .stButton > button {
+        div[data-testid="column"]:nth-child(4) .stButton > button {
             background: transparent !important;
             color: #8b949e !important;
             border: 1px solid #30363d !important;
         }
 
-        div[data-testid="column"]:nth-child(3) .stButton > button:hover {
+        div[data-testid="column"]:nth-child(4) .stButton > button:hover {
             background: #21262d !important;
             color: #e6edf3 !important;
             border-color: #8b949e !important;
@@ -297,6 +297,24 @@ def load_css() -> None:
             border: 1px solid #30363d !important;
             border-radius: 8px !important;
             color: #e6edf3 !important;
+        }
+
+        /* Action row selectbox height matching (44px) */
+        div[data-testid="column"]:nth-child(1) [data-testid="stSelectbox"] > div > div {
+            height: 44px !important;
+            min-height: 44px !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+
+        /* File Chip row selectbox height matching (34px) */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stSelectbox"] > div > div {
+            height: 34px !important;
+            min-height: 34px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-size: 0.85rem !important;
+            border-radius: 6px !important;
         }
 
         /* ── Info / Warning boxes ─────────────────────────────────────────── */
@@ -409,14 +427,16 @@ def load_css() -> None:
 
         /* ── Footer ───────────────────────────────────────────────────────── */
         .footer {
-            background: #161b22;
-            border: 1px solid #21262d;
-            border-radius: 12px;
-            padding: 1.25rem 2rem;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 1rem 0 !important;
             text-align: center;
-            margin-top: 2.5rem;
-            color: #484f58;
-            font-size: 0.82rem;
+            margin-top: 3rem;
+            color: #8b949e !important;
+            opacity: 0.65 !important;
+            font-size: 0.8rem;
+            box-shadow: none !important;
         }
 
         .footer a {
@@ -481,7 +501,6 @@ def load_css() -> None:
             filter: none !important;
         }
         .footer {
-            opacity: 1 !important;
             filter: none !important;
         }
 
@@ -490,8 +509,9 @@ def load_css() -> None:
             background: #161b22 !important;
             border: 1px solid #21262d !important;
             border-radius: 8px !important;
-            padding: 0.5rem 1rem !important;
-            margin-bottom: 1rem !important;
+            padding: 0.4rem 0.8rem !important;
+            margin-top: 0 !important;
+            margin-bottom: 0.75rem !important;
             box-shadow: none !important;
         }
         
@@ -814,27 +834,11 @@ def render_code_input(language: str) -> str:
 
     # Placeholder samples per language
     placeholder_map = {
-        "Python": (
-            "# Paste your Python code here\n\n"
-            "def bubble_sort(arr):\n"
-            "    n = len(arr)\n"
-            "    for i in range(n):\n"
-            "        for j in range(0, n - i - 1):\n"
-            "            if arr[j] > arr[j + 1]:\n"
-            "                arr[j], arr[j + 1] = arr[j + 1], arr[j]\n"
-            "    return arr"
-        ),
-        "Java": (
-            "// Paste your Java code here\n\n"
-            "public class Main {\n"
-            "    public static void main(String[] args) {\n"
-            "        System.out.println(\"Hello, World!\");\n"
-            "    }\n"
-            "}"
-        ),
-        "JavaScript": "// Paste your JavaScript code here\n\nconsole.log('Hello, World!');",
-        "C++": "// Paste your C++ code here\n\n#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << \"Hello!\" << endl;\n    return 0;\n}",
-        "C": "// Paste your C code here\n\n#include <stdio.h>\n\nint main() {\n    printf(\"Hello!\\n\");\n    return 0;\n}",
+        "Python": "# Paste your Python code here",
+        "Java": "// Paste your Java code here",
+        "JavaScript": "// Paste your JavaScript code here",
+        "C++": "/* Paste your C++ code here */",
+        "C": "/* Paste your C code here */",
     }
 
     code = st.text_area(
@@ -850,30 +854,48 @@ def render_code_input(language: str) -> str:
 # ── Action Buttons ────────────────────────────────────────────────────────────
 def render_action_buttons() -> tuple[bool, bool, bool]:
     """
-    Render the Explain, Quiz, and Clear action buttons.
+    Render the Explanation Depth selectbox and the Explain, Quiz, and Clear action buttons.
 
     Returns:
         tuple: (explain_clicked, quiz_clicked, clear_clicked)
     """
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     is_processing = st.session_state.get("is_processing", False)
+    
     with col1:
+        options_mode = ["Beginner", "Intermediate", "Advanced"]
+        current_mode = st.session_state.get("mode_selector", "Beginner")
+        try:
+            mode_index = options_mode.index(current_mode)
+        except ValueError:
+            mode_index = 0
+            
+        st.selectbox(
+            "Explanation Depth",
+            options=options_mode,
+            index=mode_index,
+            key="mode_selector",
+            label_visibility="collapsed",
+            help="Choose how detailed the explanation should be.",
+        )
+        
+    with col2:
         explain_clicked = st.button(
-            "✨ Explain Code",
+            "✨ Explain",
             key="btn_explain",
             use_container_width=True,
             disabled=is_processing,
             help="Analyze the code and generate a plain-English explanation, complexity, and suggestions",
         )
-    with col2:
+    with col3:
         quiz_clicked = st.button(
-            "🧠 Generate Quiz",
+            "🧠 Quiz",
             key="btn_quiz",
             use_container_width=True,
             disabled=is_processing,
             help="Create a five-question interactive multiple-choice test based on the code",
         )
-    with col3:
+    with col4:
         clear_clicked = st.button(
             "🗑 Clear",
             key="btn_clear",
@@ -1204,6 +1226,47 @@ def on_language_override() -> None:
         st.session_state["language_select"] = new_lang
 
 
+# ── Paste Language Heuristic Detection ─────────────────────────────────────────
+def detect_pasted_language(code: str) -> str:
+    """Heuristically detect language of pasted code snippet."""
+    if not code or not code.strip():
+        return "Python"
+
+    code_lower = code.lower()
+
+    # Check C++ indicators first
+    cpp_indicators = ["#include <iostream>", "std::", "cout <<", "cin >>", "#include <vector>", "#include <string>"]
+    if any(ind in code for ind in cpp_indicators):
+        return "C++"
+
+    # Check C indicators
+    c_indicators = ["#include <stdio.h>", "printf(", "scanf("]
+    if any(ind in code for ind in c_indicators):
+        # Disambiguate C vs C++
+        if "using namespace std" in code or "class " in code or "new " in code:
+            return "C++"
+        return "C"
+
+    # Check Java indicators
+    java_indicators = ["public class ", "public static void main", "System.out.print", "import java."]
+    if any(ind in code for ind in java_indicators):
+        return "Java"
+
+    # Check JavaScript indicators
+    js_indicators = ["console.log(", "const ", "let ", "document.get", "window.", "function ", "=>"]
+    if any(ind in code_lower for ind in js_indicators):
+        # Make sure it's not python def or import
+        if "def " not in code and "import " not in code:
+            return "JavaScript"
+
+    # Check Python indicators
+    py_indicators = ["def ", "import ", "print(", "elif ", "pass", "class ", "if __name__ =="]
+    if any(ind in code for ind in py_indicators):
+        return "Python"
+
+    return "Python"  # Default fallback
+
+
 # ── Main App ──────────────────────────────────────────────────────────────────
 def main() -> None:
     """Main application entry point."""
@@ -1274,9 +1337,7 @@ def main() -> None:
     pre_lang: str = st.session_state.get("language_selector", "Python")
 
     # Prevent concurrent processing and duplicate click handling
-    if st.session_state.get("is_processing", False):
-        pass
-    else:
+    if not st.session_state.get("is_processing", False):
         if st.session_state.get("btn_explain"):
             if not pre_code or not pre_code.strip():
                 explain_warning = True
@@ -1364,24 +1425,35 @@ def main() -> None:
 
     with st.container(border=True):
         last_upload_name = st.session_state.get("_last_upload_name")
+        code_input = st.session_state.get("code_input", "")
 
-        if last_upload_name:
-            # ── FILE CHIP ──────────────────────────────────────────────────────
-            detected_lang = st.session_state.get("_detected_language")
-            if not detected_lang:
-                detected_lang = detect_language(last_upload_name)
+        # Render status row/chip if file is uploaded OR pasted code is not empty
+        if last_upload_name or (code_input and code_input.strip()):
+            if last_upload_name:
+                detected_lang = st.session_state.get("_detected_language")
+                if not detected_lang:
+                    detected_lang = detect_language(last_upload_name)
+                    st.session_state["_detected_language"] = detected_lang
+                chip_title = f"📄 {last_upload_name}"
+            else:
+                prev_detected = st.session_state.get("_detected_language")
+                detected_lang = detect_pasted_language(code_input)
                 st.session_state["_detected_language"] = detected_lang
+                # Auto-update active language selection if a new language is auto-detected
+                if prev_detected != detected_lang:
+                    st.session_state["language_selector"] = detected_lang
+                    st.session_state["language_select"] = detected_lang
+                chip_title = "📝 pasted_code"
 
             # Use st.container(border=True) to avoid any empty HTML divs rendering.
             with st.container(border=True):
-                cols = st.columns([4, 2, 2, 1])
+                cols = st.columns([3, 2, 2, 1])
                 with cols[0]:
                     st.markdown(
                         f"""
-                        <div style="display:flex; align-items:center; gap:0.5rem; height:100%; padding-top:0.4rem;">
-                            <span style="font-size:1.1rem; line-height:1;">📄</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem; height:100%;">
                             <span style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#e6edf3; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                {last_upload_name}
+                                {chip_title}
                             </span>
                         </div>
                         """,
@@ -1390,7 +1462,7 @@ def main() -> None:
                 with cols[1]:
                     st.markdown(
                         f"""
-                        <div style="display:flex; align-items:center; gap:0.3rem; height:100%; padding-top:0.4rem;">
+                        <div style="display:flex; align-items:center; gap:0.3rem; height:100%;">
                             <span style="color:#2ec27e; font-size:0.8rem;">●</span>
                             <span style="font-size:0.85rem; color:#8b949e; font-weight:500;">{detected_lang} Detected</span>
                         </div>
@@ -1399,14 +1471,19 @@ def main() -> None:
                     )
                 with cols[2]:
                     options = ["Python", "Java", "JavaScript", "C++", "C"]
-                    current_lang = st.session_state.get("language_selector", "Python")
+                    current_lang = st.session_state.get("language_selector")
+                    if not current_lang:
+                        current_lang = detected_lang
+                        st.session_state["language_selector"] = detected_lang
+                        st.session_state["language_select"] = detected_lang
+
                     try:
                         lang_index = options.index(current_lang)
                     except ValueError:
                         lang_index = 0
 
                     st.selectbox(
-                        "Override Language",
+                        "Language Selector",
                         options=options,
                         index=lang_index,
                         key="override_language",
@@ -1415,7 +1492,7 @@ def main() -> None:
                         on_change=on_language_override,
                     )
                 with cols[3]:
-                    if st.button("✕", key="btn_remove_file", help="Remove uploaded file", use_container_width=True):
+                    if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
                         st.session_state["_clear_pending"] = True
                         st.session_state.pop("explain_results",   None)
                         st.session_state.pop("quiz_questions",    None)
@@ -1425,11 +1502,14 @@ def main() -> None:
                         st.session_state.pop("_last_upload_name", None)
                         st.session_state.pop("file_uploader",     None)
                         st.session_state.pop("_detected_language", None)
+                        st.session_state.pop("override_language",  None)
                         st.session_state["code_input"] = ""
+                        st.session_state["language_selector"] = "Python"
+                        st.session_state["language_select"] = "Python"
                         st.rerun()
 
-        else:
-            # ── NO FILE STATE ──────────────────────────────────────────────────
+        # If no file is uploaded and code is empty, show uploader at the top
+        if not last_upload_name and not (code_input and code_input.strip()):
             st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
             uploaded_file = st.file_uploader(
                 label="📎 Upload Code File (Drag & Drop)",
@@ -1440,7 +1520,7 @@ def main() -> None:
             st.markdown('</div>', unsafe_allow_html=True)
 
             if uploaded_file is not None and not st.session_state.get("is_processing", False):
-                # ── Deduplication guard ────────────────────────────────────────────────
+                # Deduplication guard
                 already_processed: bool = (
                     uploaded_file.name == st.session_state.get("_last_upload_name", "")
                 )
@@ -1493,6 +1573,8 @@ def main() -> None:
         # re-uploaded after the editor is cleared.
         st.session_state.pop("_last_upload_name", None)
         st.session_state.pop("file_uploader",     None)
+        st.session_state.pop("_detected_language", None)
+        st.session_state.pop("override_language",  None)
         st.rerun()
 
     # 10. Handle Warnings from Pre-render Stage
