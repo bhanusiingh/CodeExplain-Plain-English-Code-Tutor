@@ -514,6 +514,15 @@ def load_css() -> None:
             margin-bottom: 0.75rem !important;
             box-shadow: none !important;
         }
+
+        /* Remove borders and backgrounds from inner vertical block wrappers inside columns of the file info row */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] div[data-testid="stVerticalBlockBorderWrapper"] {
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
         
         /* Flex alignment for nested columns inside the file chip container */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] {
@@ -535,8 +544,8 @@ def load_css() -> None:
             justify-content: flex-end !important;
         }
 
-        /* Center close button and prevent default streamlit button styles from expanding it */
-        button[key="btn_remove_file"] {
+        /* Target the close button styled inside column 4 of the file info row */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) button {
             background: transparent !important;
             color: #f85149 !important;
             border: 1px solid #30363d !important;
@@ -549,8 +558,9 @@ def load_css() -> None:
             font-size: 0.95rem !important;
             padding: 0 !important;
             margin: 0 !important;
+            transition: all 0.2s ease !important;
         }
-        button[key="btn_remove_file"]:hover {
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) button:hover {
             background: rgba(248, 81, 73, 0.15) !important;
             border-color: #f85149 !important;
             color: #ff6b6b !important;
@@ -882,7 +892,6 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     with col2:
         explain_clicked = st.button(
             "✨ Explain",
-            key="btn_explain",
             use_container_width=True,
             disabled=is_processing,
             help="Analyze the code and generate a plain-English explanation, complexity, and suggestions",
@@ -890,7 +899,6 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     with col3:
         quiz_clicked = st.button(
             "🧠 Quiz",
-            key="btn_quiz",
             use_container_width=True,
             disabled=is_processing,
             help="Create a five-question interactive multiple-choice test based on the code",
@@ -898,7 +906,6 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     with col4:
         clear_clicked = st.button(
             "🗑 Clear",
-            key="btn_clear",
             use_container_width=True,
             disabled=is_processing,
             help="Reset the code editor and clear the generated results",
@@ -1245,8 +1252,6 @@ def detect_pasted_language(code: str) -> str:
         # Disambiguate C vs C++
         if "using namespace std" in code or "class " in code or "new " in code:
             return "C++"
-        return "C"
-
     # Check Java indicators
     java_indicators = ["public class ", "public static void main", "System.out.print", "import java."]
     if any(ind in code for ind in java_indicators):
@@ -1275,6 +1280,9 @@ def main() -> None:
 
     # 1b. Initialise history (idempotent — safe to call every run)
     init_history()
+
+    # 1c. Reset stuck is_processing flags at the start of every rerun
+    st.session_state["is_processing"] = False
 
     # 2. PENDING-CLEAR GUARD
     if st.session_state.get("_clear_pending"):
@@ -1327,79 +1335,9 @@ def main() -> None:
             st.session_state["language_select"] = pending["language"]
         st.session_state["_detected_language"] = pending["language"]
 
-    # 3b. PRE-RENDER API / HISTORY HANDLING — runs before render_sidebar()
-    # to ensure successful Gemini responses are saved to history immediately
-    # on the trigger run, allowing the sidebar to display them without delay.
+    # 3b. Initialize click warnings
     explain_warning: bool = False
     quiz_warning: bool = False
-
-    pre_code: str = st.session_state.get("code_input", "")
-    pre_lang: str = st.session_state.get("language_selector", "Python")
-
-    # Prevent concurrent processing and duplicate click handling
-    if not st.session_state.get("is_processing", False):
-        if st.session_state.get("btn_explain"):
-            if not pre_code or not pre_code.strip():
-                explain_warning = True
-            else:
-                st.session_state["is_processing"] = True
-                try:
-                    with st.spinner("Analysing your code with Gemini AI..."):
-                        results = run_explanation(code=pre_code, language=pre_lang)
-                    
-                    if "error" not in results:
-                        # Extract Learning Assistant from improvements section
-                        improvements_raw = results.get("improvements", "")
-                        split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
-                        parts = re.split(split_pattern, improvements_raw)
-                        
-                        learning_raw = ""
-                        if len(parts) > 1:
-                            results["improvements"] = parts[0].strip()
-                            learning_raw = parts[1].strip()
-                        
-                        # Parse learning raw text and store in results
-                        results["learning"] = parse_learning_assistant(learning_raw)
-
-                    st.session_state["explain_results"] = results
-                    if "error" not in results:
-                        st.session_state["active_tab"] = "Summary"
-                        save_history(
-                            code=pre_code,
-                            language=pre_lang,
-                            analysis=results,
-                            quiz=st.session_state.get("quiz_questions"),
-                            filename=st.session_state.get("_last_upload_name", ""),
-                            active_view="explain",
-                        )
-                finally:
-                    st.session_state["is_processing"] = False
-
-        elif st.session_state.get("btn_quiz"):
-            if not pre_code or not pre_code.strip():
-                quiz_warning = True
-            else:
-                st.session_state["is_processing"] = True
-                try:
-                    with st.spinner("Generating quiz with Gemini AI..."):
-                        quiz_result = run_quiz(code=pre_code, language=pre_lang)
-                    # Reset per-question tracking for the new quiz.
-                    st.session_state.pop("quiz_submitted", None)
-                    st.session_state.pop("quiz_chosen",    None)
-                    st.session_state.pop("quiz_score",     None)
-                    st.session_state["quiz_questions"] = quiz_result
-                    if isinstance(quiz_result, list) and quiz_result:
-                        st.session_state["active_tab"] = "Quiz"
-                        save_history(
-                            code=pre_code,
-                            language=pre_lang,
-                            analysis=st.session_state.get("explain_results"),
-                            quiz=quiz_result,
-                            filename=st.session_state.get("_last_upload_name", ""),
-                            active_view="quiz",
-                        )
-                finally:
-                    st.session_state["is_processing"] = False
 
     # 4. Render sidebar — returns user selections
     language, mode = render_sidebar()
@@ -1559,6 +1497,73 @@ def main() -> None:
 
         # 8. Action buttons
         explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
+
+        # Handle Explain click
+        if explain_clicked:
+            if not code or not code.strip():
+                explain_warning = True
+            else:
+                st.session_state["is_processing"] = True
+                try:
+                    with st.spinner("Analysing your code with Gemini AI..."):
+                        results = run_explanation(code=code, language=language)
+                    
+                    if "error" not in results:
+                        # Extract Learning Assistant from improvements section
+                        improvements_raw = results.get("improvements", "")
+                        split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
+                        parts = re.split(split_pattern, improvements_raw)
+                        
+                        learning_raw = ""
+                        if len(parts) > 1:
+                            results["improvements"] = parts[0].strip()
+                            learning_raw = parts[1].strip()
+                        
+                        # Parse learning raw text and store in results
+                        results["learning"] = parse_learning_assistant(learning_raw)
+
+                    st.session_state["explain_results"] = results
+                    if "error" not in results:
+                        st.session_state["active_tab"] = "Summary"
+                        save_history(
+                            code=code,
+                            language=language,
+                            analysis=results,
+                            quiz=st.session_state.get("quiz_questions"),
+                            filename=st.session_state.get("_last_upload_name", ""),
+                            active_view="explain",
+                        )
+                finally:
+                    st.session_state["is_processing"] = False
+                st.rerun()
+
+        # Handle Quiz click
+        elif quiz_clicked:
+            if not code or not code.strip():
+                quiz_warning = True
+            else:
+                st.session_state["is_processing"] = True
+                try:
+                    with st.spinner("Generating quiz with Gemini AI..."):
+                        quiz_result = run_quiz(code=code, language=language)
+                    # Reset per-question tracking for the new quiz.
+                    st.session_state.pop("quiz_submitted", None)
+                    st.session_state.pop("quiz_chosen",    None)
+                    st.session_state.pop("quiz_score",     None)
+                    st.session_state["quiz_questions"] = quiz_result
+                    if isinstance(quiz_result, list) and quiz_result:
+                        st.session_state["active_tab"] = "Quiz"
+                        save_history(
+                            code=code,
+                            language=language,
+                            analysis=st.session_state.get("explain_results"),
+                            quiz=quiz_result,
+                            filename=st.session_state.get("_last_upload_name", ""),
+                            active_view="quiz",
+                        )
+                finally:
+                    st.session_state["is_processing"] = False
+                st.rerun()
 
     # 9. Handle Clear button — set a flag then rerun so the guard above
     # can safely clear the widget key before it is next instantiated.
