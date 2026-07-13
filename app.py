@@ -504,48 +504,23 @@ def load_css() -> None:
             filter: none !important;
         }
 
-        /* Nested st.container overrides (File Chip status box) */
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] {
-            background: #161b22 !important;
-            border: 1px solid #21262d !important;
-            border-radius: 8px !important;
-            padding: 0.4rem 0.8rem !important;
-            margin-top: 0 !important;
-            margin-bottom: 0.75rem !important;
-            box-shadow: none !important;
+        /* ── File info chip toolbar — sits directly inside the outer workspace card ── */
+        /* Columns inside the chip row: vertically center, no extra padding */
+        div[data-testid="stVerticalBlockBorderWrapper"] > div > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            align-items: center !important;
         }
-
-        /* Remove borders and backgrounds from inner vertical block wrappers inside columns of the file info row */
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] div[data-testid="stVerticalBlockBorderWrapper"] {
+        /* Remove any stray inner wrapper styling so chips render flat */
+        div[data-testid="stVerticalBlockBorderWrapper"] > div > div[data-testid="stHorizontalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {
             border: none !important;
             background: transparent !important;
             box-shadow: none !important;
             padding: 0 !important;
             margin: 0 !important;
         }
-        
-        /* Flex alignment for nested columns inside the file chip container */
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"] {
-            display: flex !important;
-            align-items: center !important;
-            height: 100% !important;
-        }
-        
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(1) {
-            justify-content: flex-start !important;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(2) {
-            justify-content: flex-start !important;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(3) {
-            justify-content: center !important;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) {
-            justify-content: flex-end !important;
-        }
 
-        /* Target the close button styled inside column 4 of the file info row */
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) button {
+        /* ✕ Remove-file button */
+        button[data-testid="baseButton-secondary"][title="Remove code and results"],
+        div[data-testid="column"]:last-child button {
             background: transparent !important;
             color: #f85149 !important;
             border: 1px solid #30363d !important;
@@ -558,9 +533,10 @@ def load_css() -> None:
             font-size: 0.95rem !important;
             padding: 0 !important;
             margin: 0 !important;
-            transition: all 0.2s ease !important;
+            transition: background 0.2s ease, border-color 0.2s ease !important;
         }
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="column"]:nth-child(4) button:hover {
+        button[data-testid="baseButton-secondary"][title="Remove code and results"]:hover,
+        div[data-testid="column"]:last-child button:hover {
             background: rgba(248, 81, 73, 0.15) !important;
             border-color: #f85149 !important;
             color: #ff6b6b !important;
@@ -651,20 +627,7 @@ def render_sidebar() -> tuple[str, str]:
                 unsafe_allow_html=True,
             )
 
-        # 1. Settings Section
-        st.markdown(
-            '<p class="section-label">⚙️ &nbsp;Settings</p>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<p style="color:#6e7681;font-size:0.78rem;margin:0 0 0.5rem 0;">'
-            'Configure explanation depth and override file options directly in the workspace.</p>',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-
-        # 2. Session History Section
+        # History Section
         st.markdown(
             '<p class="section-label">📜 &nbsp;History</p>',
             unsafe_allow_html=True,
@@ -842,18 +805,9 @@ def render_code_input(language: str) -> str:
         str: The code entered by the user.
     """
 
-    # Placeholder samples per language
-    placeholder_map = {
-        "Python": "# Paste your Python code here",
-        "Java": "// Paste your Java code here",
-        "JavaScript": "// Paste your JavaScript code here",
-        "C++": "/* Paste your C++ code here */",
-        "C": "/* Paste your C code here */",
-    }
-
     code = st.text_area(
         label="Code Editor",
-        placeholder=placeholder_map.get(language, "Paste your code here..."),
+        placeholder="// Paste your code here...",
         height=380,
         key="code_input",
         label_visibility="collapsed",
@@ -1383,68 +1337,74 @@ def main() -> None:
                     st.session_state["language_select"] = detected_lang
                 chip_title = "📝 pasted_code"
 
-            # Use st.container(border=True) to avoid any empty HTML divs rendering.
-            with st.container(border=True):
-                cols = st.columns([3, 2, 2, 1])
-                with cols[0]:
-                    st.markdown(
-                        f"""
-                        <div style="display:flex; align-items:center; gap:0.5rem; height:100%;">
-                            <span style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#e6edf3; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                {chip_title}
-                            </span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                with cols[1]:
-                    st.markdown(
-                        f"""
-                        <div style="display:flex; align-items:center; gap:0.3rem; height:100%;">
-                            <span style="color:#2ec27e; font-size:0.8rem;">●</span>
-                            <span style="font-size:0.85rem; color:#8b949e; font-weight:500;">{detected_lang} Detected</span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                with cols[2]:
-                    options = ["Python", "Java", "JavaScript", "C++", "C"]
-                    current_lang = st.session_state.get("language_selector")
-                    if not current_lang:
-                        current_lang = detected_lang
-                        st.session_state["language_selector"] = detected_lang
-                        st.session_state["language_select"] = detected_lang
+            # Chip toolbar — no Streamlit container border, pure inline HTML + selectbox/button
+            # Build the detection badge HTML
+            if detected_lang and detected_lang not in ("", "Plain Text"):
+                lang_badge_html = (
+                    f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
+                    f'font-size:0.82rem;color:#8b949e;font-weight:500;white-space:nowrap;">'
+                    f'<span style="color:#2ec27e;font-size:0.75rem;">●</span>'
+                    f'{detected_lang} Detected</span>'
+                )
+            else:
+                lang_badge_html = (
+                    '<span style="font-size:0.82rem;color:#484f58;font-style:italic;">'
+                    'No language detected</span>'
+                )
 
-                    try:
-                        lang_index = options.index(current_lang)
-                    except ValueError:
-                        lang_index = 0
+            # Row layout: chip | detection | selectbox | remove button
+            cols = st.columns([3, 2, 2, 1])
+            with cols[0]:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0;">'
+                    f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;'
+                    f'color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+                    f'{chip_title}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            with cols[1]:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;height:100%;">{lang_badge_html}</div>',
+                    unsafe_allow_html=True,
+                )
+            with cols[2]:
+                options = ["Python", "Java", "JavaScript", "C++", "C"]
+                current_lang = st.session_state.get("language_selector")
+                if not current_lang:
+                    current_lang = detected_lang
+                    st.session_state["language_selector"] = detected_lang
+                    st.session_state["language_select"] = detected_lang
 
-                    st.selectbox(
-                        "Language Selector",
-                        options=options,
-                        index=lang_index,
-                        key="override_language",
-                        label_visibility="collapsed",
-                        help="Manually override the detected language",
-                        on_change=on_language_override,
-                    )
-                with cols[3]:
-                    if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
-                        st.session_state["_clear_pending"] = True
-                        st.session_state.pop("explain_results",   None)
-                        st.session_state.pop("quiz_questions",    None)
-                        st.session_state.pop("quiz_submitted",    None)
-                        st.session_state.pop("quiz_chosen",       None)
-                        st.session_state.pop("quiz_score",        None)
-                        st.session_state.pop("_last_upload_name", None)
-                        st.session_state.pop("file_uploader",     None)
-                        st.session_state.pop("_detected_language", None)
-                        st.session_state.pop("override_language",  None)
-                        st.session_state["code_input"] = ""
-                        st.session_state["language_selector"] = "Python"
-                        st.session_state["language_select"] = "Python"
-                        st.rerun()
+                try:
+                    lang_index = options.index(current_lang)
+                except ValueError:
+                    lang_index = 0
+
+                st.selectbox(
+                    "Language Selector",
+                    options=options,
+                    index=lang_index,
+                    key="override_language",
+                    label_visibility="collapsed",
+                    help="Manually override the detected language",
+                    on_change=on_language_override,
+                )
+            with cols[3]:
+                if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
+                    st.session_state["_clear_pending"] = True
+                    st.session_state.pop("explain_results",   None)
+                    st.session_state.pop("quiz_questions",    None)
+                    st.session_state.pop("quiz_submitted",    None)
+                    st.session_state.pop("quiz_chosen",       None)
+                    st.session_state.pop("quiz_score",        None)
+                    st.session_state.pop("_last_upload_name", None)
+                    st.session_state.pop("file_uploader",     None)
+                    st.session_state.pop("_detected_language", None)
+                    st.session_state.pop("override_language",  None)
+                    st.session_state["code_input"] = ""
+                    st.session_state["language_selector"] = "Python"
+                    st.session_state["language_select"] = "Python"
+                    st.rerun()
 
         # If no file is uploaded and code is empty, show uploader at the top
         if not last_upload_name and not (code_input and code_input.strip()):
