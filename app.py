@@ -41,6 +41,7 @@ from utils.history_manager import (
     group_history_by_date,
 )
 import re
+import html as _html
 from features.learning import parse_learning_assistant
 
 # ── Asset paths ───────────────────────────────────────────────────────────────
@@ -590,6 +591,146 @@ def load_css() -> None:
             color: #f85149 !important;
             background: rgba(248, 81, 73, 0.1) !important;
         }
+
+        /* ── Result section headings ─────────────────────────────────────── */
+        .result-heading {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #e6edf3;
+            margin: 0 0 1.25rem 0;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #21262d;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ── Result body text ────────────────────────────────────────────── */
+        .result-body p {
+            color: #c9d1d9;
+            font-size: 0.95rem;
+            line-height: 1.78;
+            margin-bottom: 0.85rem;
+        }
+        .result-body ul, .result-body ol {
+            color: #c9d1d9;
+            padding-left: 1.5rem;
+            margin-bottom: 0.85rem;
+        }
+        .result-body li { margin-bottom: 0.45rem; line-height: 1.65; }
+        .result-body strong { color: #e6edf3; }
+        .result-body code {
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 4px;
+            padding: 0.1rem 0.4rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.84em;
+            color: #79c0ff;
+        }
+
+        /* ── Breakdown cards ──────────────────────────────────────────────── */
+        .breakdown-card {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.8rem;
+            transition: border-color 0.2s ease;
+            overflow: hidden;
+        }
+        .breakdown-card:hover { border-color: #30363d; }
+
+        .breakdown-line-badge {
+            display: inline-block;
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.25);
+            color: #58a6ff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.65rem;
+            border-radius: 20px;
+            margin-bottom: 0.6rem;
+            letter-spacing: 0.04em;
+        }
+
+        .breakdown-code {
+            background: #090d13;
+            border: 1px solid #21262d;
+            border-radius: 6px;
+            padding: 0.5rem 0.9rem;
+            margin: 0.5rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.84rem;
+            color: #e6edf3;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .breakdown-explanation {
+            font-size: 0.93rem;
+            color: #c9d1d9;
+            line-height: 1.68;
+            margin: 0.5rem 0 0 0;
+        }
+
+        /* ── Complexity badge ─────────────────────────────────────────────── */
+        .complexity-big-o {
+            display: inline-block;
+            background: rgba(163, 113, 247, 0.1);
+            border: 1px solid rgba(163, 113, 247, 0.3);
+            color: #a371f7;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding: 0.35rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── Suggestion callout cards ─────────────────────────────────────── */
+        .suggestion-card {
+            background: rgba(35, 134, 54, 0.05);
+            border: 1px solid rgba(35, 134, 54, 0.18);
+            border-left: 3px solid #2ea043;
+            border-radius: 8px;
+            padding: 0.9rem 1.1rem;
+            margin-bottom: 0.75rem;
+            color: #c9d1d9;
+            font-size: 0.93rem;
+            line-height: 1.68;
+        }
+        .suggestion-number {
+            display: inline-block;
+            background: rgba(46, 160, 67, 0.15);
+            color: #3fb950;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.1rem 0.55rem;
+            border-radius: 12px;
+            margin-bottom: 0.45rem;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        /* ── Loading banner (workspace-scoped) ────────────────────────────── */
+        .loading-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(88, 166, 255, 0.06);
+            border: 1px solid rgba(88, 166, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem 1.1rem;
+            margin: 0.75rem 0 0.25rem 0;
+            color: #58a6ff;
+            font-size: 0.92rem;
+            font-weight: 500;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -868,45 +1009,198 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     return explain_clicked, quiz_clicked, clear_clicked
 
 
+# ── Result Tab Helpers ───────────────────────────────────────────────────────
+def _parse_breakdown(raw: str) -> list[dict]:
+    """
+    Parse Gemini line-by-line text into structured card entries.
+
+    Supports both formats:
+      New: Line N\n`code`\nexplanation
+      Old: Line N - explanation
+    """
+    if not raw or not raw.strip():
+        return []
+
+    entries: list[dict] = []
+    pattern = re.compile(
+        r'^(Lines?\s+\d+(?:[\-\u2013]\d+)?)\s*(?:-\s*)?(.*)$',
+        re.MULTILINE | re.IGNORECASE,
+    )
+    matches = list(pattern.finditer(raw))
+    if not matches:
+        return []
+
+    for i, match in enumerate(matches):
+        label = match.group(1).strip()
+        inline_rest = match.group(2).strip()  # old format: text after " - "
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(raw)
+        following = raw[start:end].strip()
+
+        code_snippet = ""
+        explanation_parts: list[str] = []
+
+        if inline_rest:
+            # Old format — explanation follows on same line after dash
+            explanation_parts.append(inline_rest)
+            if following:
+                explanation_parts.append(following)
+        else:
+            # New format — first following line is backtick-wrapped code
+            for j, fline in enumerate(following.split('\n')):
+                fs = fline.strip()
+                if j == 0 and fs.startswith('`') and fs.endswith('`') and len(fs) > 2:
+                    code_snippet = fs[1:-1]
+                elif fs:
+                    explanation_parts.append(fs)
+
+        explanation = ' '.join(explanation_parts).strip()
+        if label or explanation:
+            entries.append({"label": label, "code": code_snippet, "explanation": explanation})
+
+    return entries
+
+
+def _extract_big_o(text: str) -> str:
+    """Extract the first O(...) Big-O expression from a complexity string."""
+    m = re.search(r'O\([^)]+\)', text)
+    return m.group(0) if m else ""
+
+
+def _parse_suggestions(raw: str) -> list[str]:
+    """Parse a markdown bullet/numbered list into individual suggestion strings."""
+    if not raw or not raw.strip():
+        return []
+    items: list[str] = []
+    current: list[str] = []
+    for line in raw.split('\n'):
+        s = line.strip()
+        is_new = (
+            s.startswith('- ') or s.startswith('* ')
+            or (len(s) > 2 and s[0].isdigit() and s[1] in '.):')
+        )
+        if is_new:
+            if current:
+                items.append(' '.join(current).strip())
+            cleaned = re.sub(r'^[-*]\s+', '', s)
+            cleaned = re.sub(r'^\d+[.):)]\s+', '', cleaned)
+            current = [cleaned]
+        elif s and current:
+            current.append(s)
+    if current:
+        items.append(' '.join(current).strip())
+    return [i for i in items if i]
+
+
 # ── Output Section (Tab Content) ──────────────────────────────────────────────
 def render_tab_content(active_tab: str, results: dict[str, str]) -> None:
     """
-    Render active content tab for the explanation results.
+    Render the active content tab for the explanation results.
+    Each tab uses premium card-based layouts with proper typography.
     """
     if active_tab == "Summary":
-        st.markdown('<p class="section-label">📖 &nbsp;Summary</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<h2 class="result-heading">📖 Summary</h2>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div class="result-body">',
+            unsafe_allow_html=True,
+        )
         st.markdown(results.get(SECTION_SUMMARY, "Summary not available."))
+        st.markdown('</div>', unsafe_allow_html=True)
 
     elif active_tab == "Breakdown":
-        st.markdown('<p class="section-label">🔍 &nbsp;Line-by-Line Explanation</p>', unsafe_allow_html=True)
-        st.markdown(results.get(SECTION_LINE_BY_LINE, "Breakdown not available."))
+        st.markdown(
+            '<h2 class="result-heading">🔍 Line-by-Line Breakdown</h2>',
+            unsafe_allow_html=True,
+        )
+        raw = results.get(SECTION_LINE_BY_LINE, "")
+        entries = _parse_breakdown(raw)
+        if entries:
+            for entry in entries:
+                code_html = ""
+                if entry["code"]:
+                    esc_code = _html.escape(entry["code"])
+                    code_html = f'<div class="breakdown-code">{esc_code}</div>'
+                esc_label = _html.escape(entry["label"])
+                esc_expl  = _html.escape(entry["explanation"])
+                st.markdown(
+                    f'<div class="breakdown-card">'
+                    f'<div class="breakdown-line-badge">{esc_label}</div>'
+                    f'{code_html}'
+                    f'<p class="breakdown-explanation">{esc_expl}</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            # Graceful fallback — render as raw markdown
+            st.markdown(raw or "Breakdown not available.")
 
     elif active_tab == "Complexity":
-        st.markdown('<p class="section-label">📊 &nbsp;Complexity Analysis</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<h2 class="result-heading">📊 Complexity Analysis</h2>',
+            unsafe_allow_html=True,
+        )
+        time_text  = results.get(SECTION_TIME,  "Time complexity not available.")
+        space_text = results.get(SECTION_SPACE, "Space complexity not available.")
+        time_big_o  = _extract_big_o(time_text)
+        space_big_o = _extract_big_o(space_text)
         col1, col2 = st.columns(2)
         with col1:
             with st.container(border=True):
                 st.markdown("**⏱️ Time Complexity**")
-                st.markdown(results.get(SECTION_TIME, "Time complexity not available."))
+                if time_big_o:
+                    st.markdown(
+                        f'<div class="complexity-big-o">{_html.escape(time_big_o)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                st.markdown(time_text)
         with col2:
             with st.container(border=True):
                 st.markdown("**💾 Space Complexity**")
-                st.markdown(results.get(SECTION_SPACE, "Space complexity not available."))
+                if space_big_o:
+                    st.markdown(
+                        f'<div class="complexity-big-o">{_html.escape(space_big_o)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                st.markdown(space_text)
 
     elif active_tab == "Suggestions":
-        st.markdown('<p class="section-label">💡 &nbsp;Suggested Improvements</p>', unsafe_allow_html=True)
-        st.markdown(results.get(SECTION_IMPROVEMENTS, "Suggestions not available."))
+        st.markdown(
+            '<h2 class="result-heading">💡 Suggested Improvements</h2>',
+            unsafe_allow_html=True,
+        )
+        raw = results.get(SECTION_IMPROVEMENTS, "")
+        suggestions = _parse_suggestions(raw)
+        if suggestions:
+            for idx, tip in enumerate(suggestions, 1):
+                esc = _html.escape(tip)
+                st.markdown(
+                    f'<div class="suggestion-card">'
+                    f'<div class="suggestion-number">Tip {idx}</div>'
+                    f'<p style="margin:0.2rem 0 0 0;">{esc}</p>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.markdown('<div class="result-body">', unsafe_allow_html=True)
+            st.markdown(raw or "Suggestions not available.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     elif active_tab == "Learning":
-        st.markdown('<p class="section-label">🎓 &nbsp;Learning Assistant</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<h2 class="result-heading">🎓 Learning Assistant</h2>',
+            unsafe_allow_html=True,
+        )
         learning = results.get("learning")
         if learning and isinstance(learning, dict):
             subsections = [
-                ("📚 Concepts Used", "concepts"),
-                ("📖 Prerequisites", "prerequisites"),
-                ("🎯 Difficulty", "difficulty"),
-                ("💼 Interview Questions", "interview_questions"),
-                ("➡ Next Topic", "next_topic"),
+                ("📚 Concepts Used",        "concepts"),
+                ("📖 Prerequisites",         "prerequisites"),
+                ("🎯 Difficulty",            "difficulty"),
+                ("💼 Interview Questions",   "interview_questions"),
+                ("➡ Next Topic",            "next_topic"),
             ]
             for subtitle, subkey in subsections:
                 with st.container(border=True):
@@ -1235,8 +1529,11 @@ def main() -> None:
     # 1b. Initialise history (idempotent — safe to call every run)
     init_history()
 
-    # 1c. Reset stuck is_processing flags at the start of every rerun
-    st.session_state["is_processing"] = False
+    # 1c. Reset is_processing ONLY when there is no in-flight generation.
+    # If a pending generation was queued (is_processing=True from previous run),
+    # we must NOT reset here — Phase 2 of the two-phase flow depends on it.
+    if not st.session_state.get("_pending_type"):
+        st.session_state["is_processing"] = False
 
     # 2. PENDING-CLEAR GUARD
     if st.session_state.get("_clear_pending"):
@@ -1289,9 +1586,10 @@ def main() -> None:
             st.session_state["language_select"] = pending["language"]
         st.session_state["_detected_language"] = pending["language"]
 
-    # 3b. Initialize click warnings
+    # 3b. Initialize click warnings and button flags
     explain_warning: bool = False
     quiz_warning: bool = False
+    clear_clicked: bool = False  # may be overridden inside the interactive (else) branch
 
     # 4. Render sidebar — returns user selections
     language, mode = render_sidebar()
@@ -1299,195 +1597,51 @@ def main() -> None:
     # 5. Hero banner
     render_hero()
 
-    # 6. Redesigned Workspace Editor Card (Single Unified Container)
-    # Inject loading styles dynamically when is_processing is True
-    if st.session_state.get("is_processing", False):
-        st.markdown(
-            """
-            <style>
-            /* Dim the active workspace card container during run */
-            div[data-testid="stVerticalBlockBorderWrapper"] {
-                opacity: 0.65 !important;
-                pointer-events: none !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+    # Read is_processing AFTER sidebar (which may set sidebar state)
+    is_processing: bool = st.session_state.get("is_processing", False)
 
+    # 6. Workspace Editor Card — two-phase processing guard
+    # Phase 2: is_processing=True  → non-interactive loading panel + API call
+    # Phase 1: is_processing=False → normal interactive workspace
     with st.container(border=True):
-        last_upload_name = st.session_state.get("_last_upload_name")
-        code_input = st.session_state.get("code_input", "")
+        if is_processing:
+            # ── PHASE 2: Loading panel (zero interactive widgets) ──────────────────
+            _task    = st.session_state.get("_pending_type", "explain")
+            _code    = st.session_state.get("_pending_code", "")
+            _lang    = st.session_state.get("_pending_language", "Python")
 
-        # Render status row/chip if file is uploaded OR pasted code is not empty
-        if last_upload_name or (code_input and code_input.strip()):
-            if last_upload_name:
-                detected_lang = st.session_state.get("_detected_language")
-                if not detected_lang:
-                    detected_lang = detect_language(last_upload_name)
-                    st.session_state["_detected_language"] = detected_lang
-                chip_title = f"📄 {last_upload_name}"
-            else:
-                prev_detected = st.session_state.get("_detected_language")
-                detected_lang = detect_pasted_language(code_input)
-                st.session_state["_detected_language"] = detected_lang
-                # Auto-update active language selection if a new language is auto-detected
-                if prev_detected != detected_lang:
-                    st.session_state["language_selector"] = detected_lang
-                    st.session_state["language_select"] = detected_lang
-                chip_title = "📝 pasted_code"
-
-            # Chip toolbar — no Streamlit container border, pure inline HTML + selectbox/button
-            # Build the detection badge HTML
-            if detected_lang and detected_lang not in ("", "Plain Text"):
-                lang_badge_html = (
-                    f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
-                    f'font-size:0.82rem;color:#8b949e;font-weight:500;white-space:nowrap;">'
-                    f'<span style="color:#2ec27e;font-size:0.75rem;">●</span>'
-                    f'{detected_lang} Detected</span>'
-                )
-            else:
-                lang_badge_html = (
-                    '<span style="font-size:0.82rem;color:#484f58;font-style:italic;">'
-                    'No language detected</span>'
-                )
-
-            # Row layout: chip | detection | selectbox | remove button
-            cols = st.columns([3, 2, 2, 1])
-            with cols[0]:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0;">'
-                    f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;'
-                    f'color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-                    f'{chip_title}</span></div>',
-                    unsafe_allow_html=True,
-                )
-            with cols[1]:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;height:100%;">{lang_badge_html}</div>',
-                    unsafe_allow_html=True,
-                )
-            with cols[2]:
-                options = ["Python", "Java", "JavaScript", "C++", "C"]
-                current_lang = st.session_state.get("language_selector")
-                if not current_lang:
-                    current_lang = detected_lang
-                    st.session_state["language_selector"] = detected_lang
-                    st.session_state["language_select"] = detected_lang
-
-                try:
-                    lang_index = options.index(current_lang)
-                except ValueError:
-                    lang_index = 0
-
-                st.selectbox(
-                    "Language Selector",
-                    options=options,
-                    index=lang_index,
-                    key="override_language",
-                    label_visibility="collapsed",
-                    help="Manually override the detected language",
-                    on_change=on_language_override,
-                )
-            with cols[3]:
-                if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
-                    st.session_state["_clear_pending"] = True
-                    st.session_state.pop("explain_results",   None)
-                    st.session_state.pop("quiz_questions",    None)
-                    st.session_state.pop("quiz_submitted",    None)
-                    st.session_state.pop("quiz_chosen",       None)
-                    st.session_state.pop("quiz_score",        None)
-                    st.session_state.pop("_last_upload_name", None)
-                    st.session_state.pop("file_uploader",     None)
-                    st.session_state.pop("_detected_language", None)
-                    st.session_state.pop("override_language",  None)
-                    st.session_state["code_input"] = ""
-                    st.session_state["language_selector"] = "Python"
-                    st.session_state["language_select"] = "Python"
-                    st.rerun()
-
-        # If no file is uploaded and code is empty, show uploader at the top
-        if not last_upload_name and not (code_input and code_input.strip()):
-            st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
-            uploaded_file = st.file_uploader(
-                label="📎 Upload Code File (Drag & Drop)",
-                type=[ext.lstrip(".") for ext in supported_extensions()],
-                key="file_uploader",
-                disabled=st.session_state.get("is_processing", False),
+            _verb = "Analysing your code" if _task == "explain" else "Generating your quiz"
+            st.markdown(
+                f'<div class="loading-banner">'
+                f'⏳ &nbsp;{_verb} with Gemini AI…'
+                f'</div>',
+                unsafe_allow_html=True,
             )
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<p style="font-size:0.82rem;color:#484f58;margin:0.25rem 0 0 0.1rem;">'
+                'Please wait — interacting with the workspace is disabled during generation.'
+                '</p>',
+                unsafe_allow_html=True,
+            )
 
-            if uploaded_file is not None and not st.session_state.get("is_processing", False):
-                # Deduplication guard
-                already_processed: bool = (
-                    uploaded_file.name == st.session_state.get("_last_upload_name", "")
-                )
-                if not already_processed:
-                    content, error = read_uploaded_file(uploaded_file)
-                    if error:
-                        st.error(error, icon="🚨")
-                    else:
-                        detected_lang: str = detect_language(uploaded_file.name)
-                        st.session_state["_last_upload_name"] = uploaded_file.name
-                        st.session_state["_detected_language"] = detected_lang
-                        st.session_state["_upload_pending"] = {
-                            "content":  content,
-                            "language": detected_lang,
-                        }
-                        st.session_state.pop("explain_results", None)
-                        st.session_state.pop("quiz_questions",  None)
-                        st.session_state.pop("quiz_submitted",  None)
-                        st.session_state.pop("quiz_chosen",     None)
-                        st.session_state.pop("quiz_score",      None)
-                        lang_note = (
-                            f"Language detected: **{detected_lang}**"
-                            if detected_lang != "Plain Text"
-                            else "Language could not be detected automatically."
-                        )
-                        st.success(
-                            f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
-                            icon="✅",
-                        )
-                        st.rerun()
-
-        # 7. Render code input section
-        render_code_input(language)
-        # Use session_state as the source of truth.
-        code: str = st.session_state.get("code_input", "")
-
-        # 8. Action buttons
-        explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
-
-        # Handle Explain click
-        if explain_clicked:
-            if not code or not code.strip():
-                explain_warning = True
-            else:
-                st.session_state["is_processing"] = True
+            if _task == "explain":
                 try:
-                    with st.spinner("Analysing your code with Gemini AI..."):
-                        results = run_explanation(code=code, language=language)
-                    
+                    results = run_explanation(code=_code, language=_lang)
                     if "error" not in results:
-                        # Extract Learning Assistant from improvements section
                         improvements_raw = results.get("improvements", "")
                         split_pattern = r"(?im)^#+\s*Learning\s+Assistant\s*$"
                         parts = re.split(split_pattern, improvements_raw)
-                        
                         learning_raw = ""
                         if len(parts) > 1:
                             results["improvements"] = parts[0].strip()
                             learning_raw = parts[1].strip()
-                        
-                        # Parse learning raw text and store in results
                         results["learning"] = parse_learning_assistant(learning_raw)
-
                     st.session_state["explain_results"] = results
                     if "error" not in results:
                         st.session_state["active_tab"] = "Summary"
                         save_history(
-                            code=code,
-                            language=language,
+                            code=_code,
+                            language=_lang,
                             analysis=results,
                             quiz=st.session_state.get("quiz_questions"),
                             filename=st.session_state.get("_last_upload_name", ""),
@@ -1495,18 +1649,14 @@ def main() -> None:
                         )
                 finally:
                     st.session_state["is_processing"] = False
+                    st.session_state.pop("_pending_type",     None)
+                    st.session_state.pop("_pending_code",     None)
+                    st.session_state.pop("_pending_language", None)
                 st.rerun()
 
-        # Handle Quiz click
-        elif quiz_clicked:
-            if not code or not code.strip():
-                quiz_warning = True
-            else:
-                st.session_state["is_processing"] = True
+            elif _task == "quiz":
                 try:
-                    with st.spinner("Generating quiz with Gemini AI..."):
-                        quiz_result = run_quiz(code=code, language=language)
-                    # Reset per-question tracking for the new quiz.
+                    quiz_result = run_quiz(code=_code, language=_lang)
                     st.session_state.pop("quiz_submitted", None)
                     st.session_state.pop("quiz_chosen",    None)
                     st.session_state.pop("quiz_score",     None)
@@ -1514,8 +1664,8 @@ def main() -> None:
                     if isinstance(quiz_result, list) and quiz_result:
                         st.session_state["active_tab"] = "Quiz"
                         save_history(
-                            code=code,
-                            language=language,
+                            code=_code,
+                            language=_lang,
                             analysis=st.session_state.get("explain_results"),
                             quiz=quiz_result,
                             filename=st.session_state.get("_last_upload_name", ""),
@@ -1523,11 +1673,185 @@ def main() -> None:
                         )
                 finally:
                     st.session_state["is_processing"] = False
+                    st.session_state.pop("_pending_type",     None)
+                    st.session_state.pop("_pending_code",     None)
+                    st.session_state.pop("_pending_language", None)
                 st.rerun()
+
+        else:
+            # ── PHASE 1 / NORMAL: Full interactive workspace ─────────────────────
+            last_upload_name = st.session_state.get("_last_upload_name")
+            code_input = st.session_state.get("code_input", "")
+
+            # Render status row/chip if file is uploaded OR pasted code is not empty
+            if last_upload_name or (code_input and code_input.strip()):
+                if last_upload_name:
+                    detected_lang = st.session_state.get("_detected_language")
+                    if not detected_lang:
+                        detected_lang = detect_language(last_upload_name)
+                        st.session_state["_detected_language"] = detected_lang
+                    chip_title = f"📄 {last_upload_name}"
+                else:
+                    prev_detected = st.session_state.get("_detected_language")
+                    detected_lang = detect_pasted_language(code_input)
+                    st.session_state["_detected_language"] = detected_lang
+                    # Auto-update active language selection if a new language is auto-detected
+                    if prev_detected != detected_lang:
+                        st.session_state["language_selector"] = detected_lang
+                        st.session_state["language_select"] = detected_lang
+                    chip_title = "📝 pasted_code"
+
+                # Chip toolbar — no Streamlit container border, pure inline HTML + selectbox/button
+                # Build the detection badge HTML
+                if detected_lang and detected_lang not in ("", "Plain Text"):
+                    lang_badge_html = (
+                        f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
+                        f'font-size:0.82rem;color:#8b949e;font-weight:500;white-space:nowrap;">'
+                        f'<span style="color:#2ec27e;font-size:0.75rem;">●</span>'
+                        f'{detected_lang} Detected</span>'
+                    )
+                else:
+                    lang_badge_html = (
+                        '<span style="font-size:0.82rem;color:#484f58;font-style:italic;">'
+                        'No language detected</span>'
+                    )
+
+                # Row layout: chip | detection | selectbox | remove button
+                cols = st.columns([3, 2, 2, 1])
+                with cols[0]:
+                    st.markdown(
+                        f'<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0;">'
+                        f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;'
+                        f'color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+                        f'{chip_title}</span></div>',
+                        unsafe_allow_html=True,
+                    )
+                with cols[1]:
+                    st.markdown(
+                        f'<div style="display:flex;align-items:center;height:100%;">{lang_badge_html}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with cols[2]:
+                    options = ["Python", "Java", "JavaScript", "C++", "C"]
+                    current_lang = st.session_state.get("language_selector")
+                    if not current_lang:
+                        current_lang = detected_lang
+                        st.session_state["language_selector"] = detected_lang
+                        st.session_state["language_select"] = detected_lang
+
+                    try:
+                        lang_index = options.index(current_lang)
+                    except ValueError:
+                        lang_index = 0
+
+                    st.selectbox(
+                        "Language Selector",
+                        options=options,
+                        index=lang_index,
+                        key="override_language",
+                        label_visibility="collapsed",
+                        help="Manually override the detected language",
+                        on_change=on_language_override,
+                    )
+                with cols[3]:
+                    if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
+                        st.session_state["_clear_pending"] = True
+                        st.session_state.pop("explain_results",   None)
+                        st.session_state.pop("quiz_questions",    None)
+                        st.session_state.pop("quiz_submitted",    None)
+                        st.session_state.pop("quiz_chosen",       None)
+                        st.session_state.pop("quiz_score",        None)
+                        st.session_state.pop("_last_upload_name", None)
+                        st.session_state.pop("file_uploader",     None)
+                        st.session_state.pop("_detected_language", None)
+                        st.session_state.pop("override_language",  None)
+                        st.session_state["code_input"] = ""
+                        st.session_state["language_selector"] = "Python"
+                        st.session_state["language_select"] = "Python"
+                        st.rerun()
+
+            # If no file is uploaded and code is empty, show uploader at the top
+            if not last_upload_name and not (code_input and code_input.strip()):
+                st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
+                uploaded_file = st.file_uploader(
+                    label="📎 Upload Code File (Drag & Drop)",
+                    type=[ext.lstrip(".") for ext in supported_extensions()],
+                    key="file_uploader",
+                    disabled=False,
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                if uploaded_file is not None:
+                    # Deduplication guard
+                    already_processed: bool = (
+                        uploaded_file.name == st.session_state.get("_last_upload_name", "")
+                    )
+                    if not already_processed:
+                        content, error = read_uploaded_file(uploaded_file)
+                        if error:
+                            st.error(error, icon="🚨")
+                        else:
+                            detected_lang: str = detect_language(uploaded_file.name)
+                            st.session_state["_last_upload_name"] = uploaded_file.name
+                            st.session_state["_detected_language"] = detected_lang
+                            st.session_state["_upload_pending"] = {
+                                "content":  content,
+                                "language": detected_lang,
+                            }
+                            st.session_state.pop("explain_results", None)
+                            st.session_state.pop("quiz_questions",  None)
+                            st.session_state.pop("quiz_submitted",  None)
+                            st.session_state.pop("quiz_chosen",     None)
+                            st.session_state.pop("quiz_score",      None)
+                            lang_note = (
+                                f"Language detected: **{detected_lang}**"
+                                if detected_lang != "Plain Text"
+                                else "Language could not be detected automatically."
+                            )
+                            st.success(
+                                f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
+                                icon="✅",
+                            )
+                            st.rerun()
+
+            # 7. Render code input section
+            render_code_input(language)
+            # Use session_state as the source of truth.
+            code: str = st.session_state.get("code_input", "")
+
+            # 8. Action buttons
+            explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
+
+            # ── PHASE 1: Queue explain ──────────────────────────────────────────
+            if explain_clicked:
+                if not code or not code.strip():
+                    explain_warning = True
+                else:
+                    # Store everything needed for Phase 2 and trigger rerender
+                    st.session_state["is_processing"]    = True
+                    st.session_state["_pending_type"]     = "explain"
+                    st.session_state["_pending_code"]     = code
+                    st.session_state["_pending_language"] = language
+                    st.rerun()
+
+            # ── PHASE 1: Queue quiz ───────────────────────────────────────────
+            elif quiz_clicked:
+                if not code or not code.strip():
+                    quiz_warning = True
+                else:
+                    st.session_state["is_processing"]    = True
+                    st.session_state["_pending_type"]     = "quiz"
+                    st.session_state["_pending_code"]     = code
+                    st.session_state["_pending_language"] = language
+                    st.rerun()
+
+    # END of workspace container
+
 
     # 9. Handle Clear button — set a flag then rerun so the guard above
     # can safely clear the widget key before it is next instantiated.
-    if clear_clicked:
+    # clear_clicked is only defined when is_processing=False (interactive branch).
+    if not is_processing and clear_clicked:
         st.session_state["_clear_pending"] = True
         st.session_state.pop("explain_results",   None)
         st.session_state.pop("quiz_questions",    None)
@@ -1543,23 +1867,26 @@ def main() -> None:
         st.rerun()
 
     # 10. Handle Warnings from Pre-render Stage
-    if explain_warning:
+    # warnings only exist when not processing (interactive branch defines them)
+    if not is_processing and explain_warning:
         st.warning(
             "Code Editor is empty. Please enter or upload some source code before requesting an explanation.",
             icon="⚠️",
         )
-    if quiz_warning:
+    if not is_processing and quiz_warning:
         st.warning(
             "Code Editor is empty. Please enter or upload some source code before generating a quiz.",
             icon="⚠️",
         )
 
-    # 11. Render Explain output (only when exists, hiding empty states)
-    # 11. Render Tabbed Results Workspace (only when any results exist)
+    # 11. Render Tabbed Results Workspace (only when not processing AND results exist)
+    # During generation (is_processing=True) the entire results area is suppressed
+    # so that no interactive tab buttons or export actions are rendered — preventing
+    # buffered clicks from affecting active_tab or triggering secondary API calls.
     explain_results = st.session_state.get("explain_results")
     quiz_data = st.session_state.get("quiz_questions")
 
-    if explain_results or quiz_data:
+    if not is_processing and (explain_results or quiz_data):
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
         # Ensure active_tab is initialized
