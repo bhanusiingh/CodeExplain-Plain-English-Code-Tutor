@@ -57,6 +57,15 @@ from typing import Any
 
 import streamlit as st
 
+# We do lazy imports of firebase_service below to avoid circular dependencies if any,
+# or we can import them here if safe. The module is standalone enough.
+from services.firebase_service import (
+    save_user_history,
+    get_user_history,
+    delete_user_history_item,
+    clear_user_history
+)
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 MAX_HISTORY_ITEMS: int = 30
 _SESSION_KEY: str      = "history"
@@ -82,6 +91,14 @@ def init_history() -> None:
     """
     if _SESSION_KEY not in st.session_state:
         st.session_state[_SESSION_KEY] = []
+
+def sync_cloud_history(uid: str) -> None:
+    """
+    Fetch history from Firestore and update session_state.
+    Called once upon successful login.
+    """
+    history = get_user_history(uid)
+    st.session_state[_SESSION_KEY] = history
 
 
 # ── Write ─────────────────────────────────────────────────────────────────────
@@ -156,9 +173,18 @@ def save_history(
 
     # Trim to max size
     if len(history) > MAX_HISTORY_ITEMS:
-        history.pop()   # remove oldest (last element)
+        oldest = history.pop()   # remove oldest (last element)
+        # Optionally, delete the oldest item from Firestore too
+        user = st.session_state.get("user")
+        if user and "uid" in user:
+            delete_user_history_item(user["uid"], oldest["id"])
 
     st.session_state[_SESSION_KEY] = history
+    
+    # Dual-write to Firestore if user is authenticated
+    user = st.session_state.get("user")
+    if user and "uid" in user:
+        save_user_history(user["uid"], item)
 
 
 # ── Read ──────────────────────────────────────────────────────────────────────
@@ -204,11 +230,21 @@ def delete_history(item_id: str) -> None:
         item for item in st.session_state[_SESSION_KEY]
         if item["id"] != item_id
     ]
+    
+    # Delete from Firestore if user is authenticated
+    user = st.session_state.get("user")
+    if user and "uid" in user:
+        delete_user_history_item(user["uid"], item_id)
 
 
 def clear_history() -> None:
     """Remove all history items."""
     st.session_state[_SESSION_KEY] = []
+    
+    # Clear from Firestore if user is authenticated
+    user = st.session_state.get("user")
+    if user and "uid" in user:
+        clear_user_history(user["uid"])
 
 
 # ── Title generation ──────────────────────────────────────────────────────────

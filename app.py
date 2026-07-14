@@ -43,7 +43,7 @@ from utils.history_manager import (
 import re
 import html as _html
 from features.learning import parse_learning_assistant
-
+from services.auth_ui import render_auth_screen
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
 _LOGO_PATH  = _ASSETS_DIR / "logo.png"
@@ -90,7 +90,26 @@ def load_css() -> None:
         [data-testid="stSidebar"] * {
             color: #e6edf3 !important;
         }
+        """,
+        unsafe_allow_html=True,
+    )
+    
+    # Hide sidebar entirely if not authenticated
+    if "user" not in st.session_state:
+        st.markdown(
+            """
+            <style>
+            [data-testid="stSidebar"], [data-testid="collapsedControl"] { 
+                display: none !important; 
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
+    st.markdown(
+        """
+        <style>
         /* ── Hero Banner ──────────────────────────────────────────────────── */
         .hero-banner {
             background: linear-gradient(135deg, #1a2744 0%, #0f2d4a 40%, #1a1a3e 100%);
@@ -907,6 +926,20 @@ def render_sidebar() -> tuple[str, str]:
             unsafe_allow_html=True,
         )
 
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+
+        user = st.session_state.get("user")
+        if user:
+            st.markdown(
+                f'<p class="section-label">👤 &nbsp;{user.get("name", user.get("email"))}</p>',
+                unsafe_allow_html=True,
+            )
+            if st.button("🚪 Logout", key="logout_btn", use_container_width=True):
+                # Clear entire session state on logout
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
+
     language = st.session_state.get("language_selector", "Python")
     mode = st.session_state.get("mode_selector", "Beginner")
     return language, mode
@@ -946,12 +979,14 @@ def render_code_input(language: str) -> str:
         str: The code entered by the user.
     """
 
+    _is_proc: bool = st.session_state.get("is_processing", False)
     code = st.text_area(
         label="Code Editor",
         placeholder="// Paste your code here...",
         height=380,
         key="code_input",
         label_visibility="collapsed",
+        disabled=_is_proc,
     )
     return code
 
@@ -982,6 +1017,7 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
             key="mode_selector",
             label_visibility="collapsed",
             help="Choose how detailed the explanation should be.",
+            disabled=is_processing,
         )
         
     with col2:
@@ -1249,8 +1285,13 @@ def render_export_buttons(results: dict[str, str] | None = None) -> None:
     col_pdf, col_md, col_clip = st.columns(3)
 
     # ── PDF download ─────────────────────────────────────────────────────────
+    # Cache pdf_bytes in session_state so the download_button receives the same
+    # bytes object across reruns (tab switches, etc.).  A stale cache is cleared
+    # whenever explain_results changes (see Phase 2 finally block in main()).
     with col_pdf:
-        pdf_bytes = generate_pdf(results, language, code)
+        if "_cached_pdf" not in st.session_state:
+            st.session_state["_cached_pdf"] = generate_pdf(results, language, code)
+        pdf_bytes = st.session_state["_cached_pdf"]
         if pdf_bytes:
             st.download_button(
                 label="📄 Download PDF",
@@ -1523,8 +1564,13 @@ def detect_pasted_language(code: str) -> str:
 # ── Main App ──────────────────────────────────────────────────────────────────
 def main() -> None:
     """Main application entry point."""
-    # 1. Load global styles
+    # 1. Load global styles (conditionally hides sidebar)
     load_css()
+
+    # 1a. Auth Gate
+    if "user" not in st.session_state:
+        render_auth_screen()
+        st.stop()
 
     # 1b. Initialise history (idempotent — safe to call every run)
     init_history()
@@ -1600,16 +1646,17 @@ def main() -> None:
     # Read is_processing AFTER sidebar (which may set sidebar state)
     is_processing: bool = st.session_state.get("is_processing", False)
 
-    # 6. Workspace Editor Card — two-phase processing guard
-    # Phase 2: is_processing=True  → non-interactive loading panel + API call
-    # Phase 1: is_processing=False → normal interactive workspace
+    # 6. Workspace Editor Card
+    # When is_processing=True (Phase 2): workspace is fully visible but every
+    # interactive widget is disabled.  The API call fires here and st.rerun()
+    # is called at the end, transitioning back to the normal interactive state.
     with st.container(border=True):
-        if is_processing:
-            # ── PHASE 2: Loading panel (zero interactive widgets) ──────────────────
-            _task    = st.session_state.get("_pending_type", "explain")
-            _code    = st.session_state.get("_pending_code", "")
-            _lang    = st.session_state.get("_pending_language", "Python")
 
+        # ── PHASE 2: API call fires when a pending generation is queued ─────────
+        if is_processing:
+            _task = st.session_state.get("_pending_type", "explain")
+            _code = st.session_state.get("_pending_code", "")
+            _lang = st.session_state.get("_pending_language", "Python")
             _verb = "Analysing your code" if _task == "explain" else "Generating your quiz"
             st.markdown(
                 f'<div class="loading-banner">'
@@ -1617,13 +1664,185 @@ def main() -> None:
                 f'</div>',
                 unsafe_allow_html=True,
             )
-            st.markdown(
-                '<p style="font-size:0.82rem;color:#484f58;margin:0.25rem 0 0 0.1rem;">'
-                'Please wait — interacting with the workspace is disabled during generation.'
-                '</p>',
-                unsafe_allow_html=True,
-            )
 
+        # ── WORKSPACE: always rendered; widgets disabled while processing ────────
+        last_upload_name = st.session_state.get("_last_upload_name")
+        code_input = st.session_state.get("code_input", "")
+
+        # Render status row/chip if file is uploaded OR pasted code is not empty
+        if last_upload_name or (code_input and code_input.strip()):
+            if last_upload_name:
+                detected_lang = st.session_state.get("_detected_language")
+                if not detected_lang:
+                    detected_lang = detect_language(last_upload_name)
+                    st.session_state["_detected_language"] = detected_lang
+                chip_title = f"📄 {last_upload_name}"
+            else:
+                prev_detected = st.session_state.get("_detected_language")
+                detected_lang = detect_pasted_language(code_input)
+                st.session_state["_detected_language"] = detected_lang
+                # Auto-update active language selection if a new language is auto-detected
+                if prev_detected != detected_lang:
+                    st.session_state["language_selector"] = detected_lang
+                    st.session_state["language_select"] = detected_lang
+                chip_title = "📝 pasted_code"
+
+            # Chip toolbar — no Streamlit container border, pure inline HTML + selectbox/button
+            # Build the detection badge HTML
+            if detected_lang and detected_lang not in ("", "Plain Text"):
+                lang_badge_html = (
+                    f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
+                    f'font-size:0.82rem;color:#8b949e;font-weight:500;white-space:nowrap;">'
+                    f'<span style="color:#2ec27e;font-size:0.75rem;">●</span>'
+                    f'{detected_lang} Detected</span>'
+                )
+            else:
+                lang_badge_html = (
+                    '<span style="font-size:0.82rem;color:#484f58;font-style:italic;">'
+                    'No language detected</span>'
+                )
+
+            # Row layout: chip | detection | selectbox | remove button
+            cols = st.columns([3, 2, 2, 1])
+            with cols[0]:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0;">'
+                    f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;'
+                    f'color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+                    f'{chip_title}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            with cols[1]:
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;height:100%;">{lang_badge_html}</div>',
+                    unsafe_allow_html=True,
+                )
+            with cols[2]:
+                options = ["Python", "Java", "JavaScript", "C++", "C"]
+                current_lang = st.session_state.get("language_selector")
+                if not current_lang:
+                    current_lang = detected_lang
+                    st.session_state["language_selector"] = detected_lang
+                    st.session_state["language_select"] = detected_lang
+
+                try:
+                    lang_index = options.index(current_lang)
+                except ValueError:
+                    lang_index = 0
+
+                st.selectbox(
+                    "Language Selector",
+                    options=options,
+                    index=lang_index,
+                    key="override_language",
+                    label_visibility="collapsed",
+                    help="Manually override the detected language",
+                    on_change=on_language_override,
+                    disabled=is_processing,
+                )
+            with cols[3]:
+                if st.button(
+                    "✕",
+                    key="btn_remove_file",
+                    help="Remove code and results",
+                    use_container_width=True,
+                    disabled=is_processing,
+                ):
+                    st.session_state["_clear_pending"] = True
+                    st.session_state.pop("explain_results",   None)
+                    st.session_state.pop("quiz_questions",    None)
+                    st.session_state.pop("quiz_submitted",    None)
+                    st.session_state.pop("quiz_chosen",       None)
+                    st.session_state.pop("quiz_score",        None)
+                    st.session_state.pop("_last_upload_name", None)
+                    st.session_state.pop("file_uploader",     None)
+                    st.session_state.pop("_detected_language", None)
+                    st.session_state.pop("override_language",  None)
+                    st.session_state["code_input"] = ""
+                    st.session_state["language_selector"] = "Python"
+                    st.session_state["language_select"] = "Python"
+                    st.rerun()
+
+        # If no file is uploaded and code is empty, show uploader at the top
+        if not last_upload_name and not (code_input and code_input.strip()):
+            st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
+            uploaded_file = st.file_uploader(
+                label="📎 Upload Code File (Drag & Drop)",
+                type=[ext.lstrip(".") for ext in supported_extensions()],
+                key="file_uploader",
+                disabled=is_processing,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            if uploaded_file is not None and not is_processing:
+                # Deduplication guard
+                already_processed: bool = (
+                    uploaded_file.name == st.session_state.get("_last_upload_name", "")
+                )
+                if not already_processed:
+                    content, error = read_uploaded_file(uploaded_file)
+                    if error:
+                        st.error(error, icon="🚨")
+                    else:
+                        detected_lang: str = detect_language(uploaded_file.name)
+                        st.session_state["_last_upload_name"] = uploaded_file.name
+                        st.session_state["_detected_language"] = detected_lang
+                        st.session_state["_upload_pending"] = {
+                            "content":  content,
+                            "language": detected_lang,
+                        }
+                        st.session_state.pop("explain_results", None)
+                        st.session_state.pop("quiz_questions",  None)
+                        st.session_state.pop("quiz_submitted",  None)
+                        st.session_state.pop("quiz_chosen",     None)
+                        st.session_state.pop("quiz_score",      None)
+                        lang_note = (
+                            f"Language detected: **{detected_lang}**"
+                            if detected_lang != "Plain Text"
+                            else "Language could not be detected automatically."
+                        )
+                        st.success(
+                            f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
+                            icon="✅",
+                        )
+                        st.rerun()
+
+        # 7. Render code input section (always visible, disabled while processing)
+        render_code_input(language)
+        # Use session_state as the source of truth.
+        code: str = st.session_state.get("code_input", "")
+
+        # 8. Action buttons (disabled while processing)
+        explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
+
+        if not is_processing:
+            # ── PHASE 1: Queue explain ─────────────────────────────────────────
+            if explain_clicked:
+                if not code or not code.strip():
+                    explain_warning = True
+                else:
+                    # Store everything needed for Phase 2 and trigger rerender
+                    st.session_state["is_processing"]    = True
+                    st.session_state["_pending_type"]     = "explain"
+                    st.session_state["_pending_code"]     = code
+                    st.session_state["_pending_language"] = language
+                    st.rerun()
+
+            # ── PHASE 1: Queue quiz ────────────────────────────────────────────
+            elif quiz_clicked:
+                if not code or not code.strip():
+                    quiz_warning = True
+                else:
+                    st.session_state["is_processing"]    = True
+                    st.session_state["_pending_type"]     = "quiz"
+                    st.session_state["_pending_code"]     = code
+                    st.session_state["_pending_language"] = language
+                    st.rerun()
+
+        # ── PHASE 2 (continued): execute the queued API call after workspace
+        # is fully rendered.  st.rerun() terminates the script here so nothing
+        # below this block runs during the loading phase.
+        if is_processing:
             if _task == "explain":
                 try:
                     results = run_explanation(code=_code, language=_lang)
@@ -1637,6 +1856,8 @@ def main() -> None:
                             learning_raw = parts[1].strip()
                         results["learning"] = parse_learning_assistant(learning_raw)
                     st.session_state["explain_results"] = results
+                    # Invalidate cached PDF so export uses fresh data
+                    st.session_state.pop("_cached_pdf", None)
                     if "error" not in results:
                         st.session_state["active_tab"] = "Summary"
                         save_history(
@@ -1678,180 +1899,14 @@ def main() -> None:
                     st.session_state.pop("_pending_language", None)
                 st.rerun()
 
-        else:
-            # ── PHASE 1 / NORMAL: Full interactive workspace ─────────────────────
-            last_upload_name = st.session_state.get("_last_upload_name")
-            code_input = st.session_state.get("code_input", "")
-
-            # Render status row/chip if file is uploaded OR pasted code is not empty
-            if last_upload_name or (code_input and code_input.strip()):
-                if last_upload_name:
-                    detected_lang = st.session_state.get("_detected_language")
-                    if not detected_lang:
-                        detected_lang = detect_language(last_upload_name)
-                        st.session_state["_detected_language"] = detected_lang
-                    chip_title = f"📄 {last_upload_name}"
-                else:
-                    prev_detected = st.session_state.get("_detected_language")
-                    detected_lang = detect_pasted_language(code_input)
-                    st.session_state["_detected_language"] = detected_lang
-                    # Auto-update active language selection if a new language is auto-detected
-                    if prev_detected != detected_lang:
-                        st.session_state["language_selector"] = detected_lang
-                        st.session_state["language_select"] = detected_lang
-                    chip_title = "📝 pasted_code"
-
-                # Chip toolbar — no Streamlit container border, pure inline HTML + selectbox/button
-                # Build the detection badge HTML
-                if detected_lang and detected_lang not in ("", "Plain Text"):
-                    lang_badge_html = (
-                        f'<span style="display:inline-flex;align-items:center;gap:0.3rem;'
-                        f'font-size:0.82rem;color:#8b949e;font-weight:500;white-space:nowrap;">'
-                        f'<span style="color:#2ec27e;font-size:0.75rem;">●</span>'
-                        f'{detected_lang} Detected</span>'
-                    )
-                else:
-                    lang_badge_html = (
-                        '<span style="font-size:0.82rem;color:#484f58;font-style:italic;">'
-                        'No language detected</span>'
-                    )
-
-                # Row layout: chip | detection | selectbox | remove button
-                cols = st.columns([3, 2, 2, 1])
-                with cols[0]:
-                    st.markdown(
-                        f'<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0;">'
-                        f'<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.88rem;'
-                        f'color:#e6edf3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-                        f'{chip_title}</span></div>',
-                        unsafe_allow_html=True,
-                    )
-                with cols[1]:
-                    st.markdown(
-                        f'<div style="display:flex;align-items:center;height:100%;">{lang_badge_html}</div>',
-                        unsafe_allow_html=True,
-                    )
-                with cols[2]:
-                    options = ["Python", "Java", "JavaScript", "C++", "C"]
-                    current_lang = st.session_state.get("language_selector")
-                    if not current_lang:
-                        current_lang = detected_lang
-                        st.session_state["language_selector"] = detected_lang
-                        st.session_state["language_select"] = detected_lang
-
-                    try:
-                        lang_index = options.index(current_lang)
-                    except ValueError:
-                        lang_index = 0
-
-                    st.selectbox(
-                        "Language Selector",
-                        options=options,
-                        index=lang_index,
-                        key="override_language",
-                        label_visibility="collapsed",
-                        help="Manually override the detected language",
-                        on_change=on_language_override,
-                    )
-                with cols[3]:
-                    if st.button("✕", key="btn_remove_file", help="Remove code and results", use_container_width=True):
-                        st.session_state["_clear_pending"] = True
-                        st.session_state.pop("explain_results",   None)
-                        st.session_state.pop("quiz_questions",    None)
-                        st.session_state.pop("quiz_submitted",    None)
-                        st.session_state.pop("quiz_chosen",       None)
-                        st.session_state.pop("quiz_score",        None)
-                        st.session_state.pop("_last_upload_name", None)
-                        st.session_state.pop("file_uploader",     None)
-                        st.session_state.pop("_detected_language", None)
-                        st.session_state.pop("override_language",  None)
-                        st.session_state["code_input"] = ""
-                        st.session_state["language_selector"] = "Python"
-                        st.session_state["language_select"] = "Python"
-                        st.rerun()
-
-            # If no file is uploaded and code is empty, show uploader at the top
-            if not last_upload_name and not (code_input and code_input.strip()):
-                st.markdown('<div class="workspace-uploader">', unsafe_allow_html=True)
-                uploaded_file = st.file_uploader(
-                    label="📎 Upload Code File (Drag & Drop)",
-                    type=[ext.lstrip(".") for ext in supported_extensions()],
-                    key="file_uploader",
-                    disabled=False,
-                )
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                if uploaded_file is not None:
-                    # Deduplication guard
-                    already_processed: bool = (
-                        uploaded_file.name == st.session_state.get("_last_upload_name", "")
-                    )
-                    if not already_processed:
-                        content, error = read_uploaded_file(uploaded_file)
-                        if error:
-                            st.error(error, icon="🚨")
-                        else:
-                            detected_lang: str = detect_language(uploaded_file.name)
-                            st.session_state["_last_upload_name"] = uploaded_file.name
-                            st.session_state["_detected_language"] = detected_lang
-                            st.session_state["_upload_pending"] = {
-                                "content":  content,
-                                "language": detected_lang,
-                            }
-                            st.session_state.pop("explain_results", None)
-                            st.session_state.pop("quiz_questions",  None)
-                            st.session_state.pop("quiz_submitted",  None)
-                            st.session_state.pop("quiz_chosen",     None)
-                            st.session_state.pop("quiz_score",      None)
-                            lang_note = (
-                                f"Language detected: **{detected_lang}**"
-                                if detected_lang != "Plain Text"
-                                else "Language could not be detected automatically."
-                            )
-                            st.success(
-                                f"Loaded: **{uploaded_file.name}**  —  {lang_note}",
-                                icon="✅",
-                            )
-                            st.rerun()
-
-            # 7. Render code input section
-            render_code_input(language)
-            # Use session_state as the source of truth.
-            code: str = st.session_state.get("code_input", "")
-
-            # 8. Action buttons
-            explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
-
-            # ── PHASE 1: Queue explain ──────────────────────────────────────────
-            if explain_clicked:
-                if not code or not code.strip():
-                    explain_warning = True
-                else:
-                    # Store everything needed for Phase 2 and trigger rerender
-                    st.session_state["is_processing"]    = True
-                    st.session_state["_pending_type"]     = "explain"
-                    st.session_state["_pending_code"]     = code
-                    st.session_state["_pending_language"] = language
-                    st.rerun()
-
-            # ── PHASE 1: Queue quiz ───────────────────────────────────────────
-            elif quiz_clicked:
-                if not code or not code.strip():
-                    quiz_warning = True
-                else:
-                    st.session_state["is_processing"]    = True
-                    st.session_state["_pending_type"]     = "quiz"
-                    st.session_state["_pending_code"]     = code
-                    st.session_state["_pending_language"] = language
-                    st.rerun()
-
     # END of workspace container
 
 
     # 9. Handle Clear button — set a flag then rerun so the guard above
     # can safely clear the widget key before it is next instantiated.
-    # clear_clicked is only defined when is_processing=False (interactive branch).
-    if not is_processing and clear_clicked:
+    # clear_clicked is only True when the interactive workspace is rendered;
+    # it is False while is_processing (button is disabled and won't fire).
+    if clear_clicked:
         st.session_state["_clear_pending"] = True
         st.session_state.pop("explain_results",   None)
         st.session_state.pop("quiz_questions",    None)
@@ -1867,26 +1922,25 @@ def main() -> None:
         st.rerun()
 
     # 10. Handle Warnings from Pre-render Stage
-    # warnings only exist when not processing (interactive branch defines them)
-    if not is_processing and explain_warning:
+    if explain_warning:
         st.warning(
             "Code Editor is empty. Please enter or upload some source code before requesting an explanation.",
             icon="⚠️",
         )
-    if not is_processing and quiz_warning:
+    if quiz_warning:
         st.warning(
             "Code Editor is empty. Please enter or upload some source code before generating a quiz.",
             icon="⚠️",
         )
 
-    # 11. Render Tabbed Results Workspace (only when not processing AND results exist)
-    # During generation (is_processing=True) the entire results area is suppressed
-    # so that no interactive tab buttons or export actions are rendered — preventing
-    # buffered clicks from affecting active_tab or triggering secondary API calls.
+    # 11. Render Tabbed Results Workspace (when results exist)
+    # Results remain visible during generation so the user can see prior
+    # output.  Tab buttons are disabled while is_processing=True so they
+    # cannot trigger a rerun that would interrupt the in-flight API call.
     explain_results = st.session_state.get("explain_results")
     quiz_data = st.session_state.get("quiz_questions")
 
-    if not is_processing and (explain_results or quiz_data):
+    if explain_results or quiz_data:
         st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 
         # Ensure active_tab is initialized
@@ -1937,27 +1991,27 @@ def main() -> None:
         st.markdown('<div class="tab-bar-container">', unsafe_allow_html=True)
         tab_cols = st.columns(6)
         with tab_cols[0]:
-            if st.button("📖 Summary", key="tab_summary", use_container_width=True):
+            if st.button("📖 Summary", key="tab_summary", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Summary"
                 st.rerun()
         with tab_cols[1]:
-            if st.button("🔍 Breakdown", key="tab_breakdown", use_container_width=True):
+            if st.button("🔍 Breakdown", key="tab_breakdown", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Breakdown"
                 st.rerun()
         with tab_cols[2]:
-            if st.button("📊 Complexity", key="tab_complexity", use_container_width=True):
+            if st.button("📊 Complexity", key="tab_complexity", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Complexity"
                 st.rerun()
         with tab_cols[3]:
-            if st.button("💡 Suggestions", key="tab_suggestions", use_container_width=True):
+            if st.button("💡 Suggestions", key="tab_suggestions", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Suggestions"
                 st.rerun()
         with tab_cols[4]:
-            if st.button("🎓 Learning", key="tab_learning", use_container_width=True):
+            if st.button("🎓 Learning", key="tab_learning", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Learning"
                 st.rerun()
         with tab_cols[5]:
-            if st.button("📝 Quiz", key="tab_quiz", use_container_width=True):
+            if st.button("📝 Quiz", key="tab_quiz", use_container_width=True, disabled=is_processing):
                 st.session_state["active_tab"] = "Quiz"
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -1982,9 +2036,10 @@ def main() -> None:
             else:
                 st.info("No explanation generated yet. Click **Explain Code** below the editor to analyze the code.", icon="ℹ️")
 
-        # Export buttons (render ONLY if valid explanation results exist)
-        if explain_results and "error" not in explain_results:
+        # Export buttons — not rendered while generating (prevents stale download links)
+        if not is_processing and explain_results and "error" not in explain_results:
             render_export_buttons(explain_results)
+
 
     # 11. Footer
     render_footer()
