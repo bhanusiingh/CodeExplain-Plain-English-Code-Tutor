@@ -1,10 +1,12 @@
-# 🧠 CodeExplain — Plain-English Code Tutor
+# 🧠 CodeExplain — AI-Powered Plain-English Code Tutor
 
 > An AI-powered educational web application that transforms complex source code into beginner-friendly explanations, interactive quizzes, and structured learning guidance using Google's Gemini AI.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.45-red)
 ![Gemini](https://img.shields.io/badge/Google-Gemini_AI-orange)
+![Firebase](https://img.shields.io/badge/Firebase-Authentication-yellow)
+![Firestore](https://img.shields.io/badge/Firestore-Cloud_History-orange)
 ![License](https://img.shields.io/badge/License-Educational-green)
 
 ---
@@ -33,9 +35,9 @@ After every explanation the AI also generates:
 
 ---
 
-## 🧠 Quiz Generator
+## 🧠 AI Quiz Generator
 
-Generate an AI-powered multiple-choice quiz based on the uploaded code.
+Generate AI-powered multiple-choice quizzes based on the uploaded code.
 
 Features include:
 
@@ -46,11 +48,22 @@ Features include:
 
 ---
 
+## 🔐 Authentication & Cloud Sync
+
+- Secure Email & Password Authentication
+- Firebase Authentication
+- Cloud-based User Accounts
+- Persistent Login Sessions
+- Cloud History Synchronization
+- Logout & Session Management
+
+---
+
 ## 📂 File Upload
 
 Upload source code directly.
 
-Supported languages:
+Supported Languages:
 
 - Python
 - Java
@@ -62,15 +75,17 @@ Automatic language detection is performed based on the uploaded file.
 
 ---
 
-## 🕘 Session History
+## ☁ Cloud History
 
-- Save previous explanations
-- Save quizzes
-- Restore previous sessions instantly
-- Delete individual history
-- Clear history
+Every authenticated user gets their own persistent history.
 
-(No database required — current session only.)
+Features include:
+
+- Automatic Cloud Synchronization
+- Restore Previous Sessions
+- Cross-Device Access
+- Delete Individual History
+- Local Fallback when Cloud is Unavailable
 
 ---
 
@@ -83,15 +98,39 @@ Export explanations as:
 
 ---
 
+## 🎨 Modern User Interface
+
+- Modern Workspace Layout
+- Glassmorphism Login Screen
+- Processing Lock During AI Requests
+- Interactive Analysis Cards
+- Responsive Design Improvements
+
+---
+
 ## 🛡 Production Features
 
-- Robust Gemini API error handling
-- Upload validation
-- Duplicate request prevention
-- Duplicate history prevention
-- Friendly user messages
-- Session cleanup
-- Processing lock during AI requests
+- Robust Gemini API Error Handling
+- Upload Validation
+- Duplicate Request Prevention
+- Duplicate History Prevention
+- Friendly User Messages
+- Session Cleanup
+- Firebase Authentication
+- Firestore Cloud Storage
+
+---
+
+# 🌟 Highlights
+
+- ✅ AI-powered code explanations using Google Gemini
+- ✅ Beginner-friendly learning experience
+- ✅ Interactive quiz generation
+- ✅ Firebase Authentication
+- ✅ Persistent Cloud History
+- ✅ PDF & Markdown Export
+- ✅ Modern UI with Glassmorphism Authentication
+- ✅ Production-ready architecture
 
 ---
 
@@ -100,16 +139,20 @@ Export explanations as:
 - Python 3.12
 - Streamlit
 - Google Gemini API
+- Firebase Authentication
+- Firebase Firestore
+- Firebase Admin SDK
 - python-dotenv
 - ReportLab
 - Markdown
 - Pygments
+- Requests
 
 ---
 
 # 📁 Project Structure
 
-```
+```text
 CodeExplain-Plain-English-Code-Tutor/
 
 │
@@ -119,14 +162,24 @@ CodeExplain-Plain-English-Code-Tutor/
 ├── .env.example
 ├── .gitignore
 │
+├── .streamlit/
+│   └── secrets.toml.example
+│
 ├── assets/
+│   ├── banner.png
+│   ├── login.png
+│   └── logo.png
 │
 ├── features/
+│   ├── complexity.py
 │   ├── explain.py
+│   ├── learning.py
 │   ├── quiz.py
-│   └── learning.py
+│   └── suggestions.py
 │
 ├── services/
+│   ├── auth_ui.py
+│   ├── firebase_service.py
 │   ├── gemini_service.py
 │   └── prompts.py
 │
@@ -156,13 +209,13 @@ python -m venv venv
 
 Activate
 
-Windows
+### Windows
 
 ```bash
 venv\Scripts\activate
 ```
 
-Linux/macOS
+### Linux / macOS
 
 ```bash
 source venv/bin/activate
@@ -180,7 +233,23 @@ Create `.env`
 GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
-Run
+Configure Firebase
+
+Create:
+
+```text
+.streamlit/secrets.toml
+```
+
+using
+
+```text
+.streamlit/secrets.toml.example
+```
+
+and insert your Firebase credentials.
+
+Run the application
 
 ```bash
 streamlit run app.py
@@ -190,7 +259,15 @@ streamlit run app.py
 
 # 📸 Screenshots
 
-> Screenshots will be updated after the upcoming Phase 2 UI redesign.
+> Screenshots will be updated after Phase 2 is fully completed.
+
+Current UI includes:
+
+- Modern Workspace
+- Glassmorphism Login
+- Firebase Authentication
+- Cloud History
+- AI Analysis Dashboard
 
 ---
 
@@ -199,24 +276,47 @@ streamlit run app.py
 ## ✅ Phase 1 (Completed)
 
 - AI Code Explanation
-- Quiz Generator
 - Learning Assistant
+- Quiz Generator
 - File Upload
 - Session History
 - PDF Export
 - Markdown Export
-- Production Ready
+- Production Features
 
-## 🚀 Phase 2 (Planned)
+---
 
-- Modern UI Redesign
-- Inline File Upload
-- Analysis / Quiz View Switching
-- Google Authentication
-- Cloud History
-- Responsive Design
-- Enhanced Animations
-- Improved Theme System
+## ✅ Phase 2 (Completed So Far)
+
+- Modern Workspace UI
+- Improved Analysis Cards
+- Processing Lock
+- Firebase Authentication
+- Glassmorphism Login
+- Persistent Cloud History
+- Responsive Authentication UI
+
+---
+
+## 🚀 Upcoming
+
+- Monaco Editor
+- Light / Dark Theme
+- Codebase Refactoring
+- Responsive Workspace
+- Deployment
+- Performance Optimization
+- Final UI Polish
+
+---
+
+# ☁ Deployment
+
+Designed for deployment using:
+
+- Streamlit Community Cloud
+- Firebase Authentication
+- Firebase Firestore
 
 ---
 
@@ -224,7 +324,7 @@ streamlit run app.py
 
 **Bhanu Pratap Singh**
 
-Built using **Python**, **Streamlit**, and **Google Gemini AI** as an educational project focused on helping beginners understand programming through AI-assisted explanations.
+Built using **Python**, **Streamlit**, **Google Gemini AI**, and **Firebase** as an educational project focused on helping beginners understand programming through AI-assisted explanations.
 
 ---
 
