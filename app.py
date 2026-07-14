@@ -44,6 +44,7 @@ import re
 import html as _html
 from features.learning import parse_learning_assistant
 from services.auth_ui import render_auth_screen
+from services.monaco_editor import render_monaco_editor
 # ── Asset paths ───────────────────────────────────────────────────────────────
 _ASSETS_DIR = Path(__file__).parent / "assets"
 _LOGO_PATH  = _ASSETS_DIR / "logo.png"
@@ -769,7 +770,7 @@ def render_sidebar() -> tuple[str, str]:
         st.session_state["language_selector"] = "Python"
         st.session_state["language_select"] = "Python"
     if "mode_selector" not in st.session_state:
-        st.session_state["mode_selector"] = "Beginner"
+        st.session_state["mode_selector"] = "Select explanation style..."
 
     with st.sidebar:
         # Logo block — use real logo.png if available, else emoji fallback
@@ -941,7 +942,7 @@ def render_sidebar() -> tuple[str, str]:
                 st.rerun()
 
     language = st.session_state.get("language_selector", "Python")
-    mode = st.session_state.get("mode_selector", "Beginner")
+    mode = st.session_state.get("mode_selector", "Select explanation style...")
     return language, mode
 
 
@@ -970,24 +971,32 @@ def render_hero() -> None:
 # ── Code Input Area ───────────────────────────────────────────────────────────
 def render_code_input(language: str) -> str:
     """
-    Render the code editor.
+    Render the Monaco (VS Code) code editor component.
+
+    The editor returns the value directly back to Python via Streamlit's
+    custom component bi-directional data flow.
 
     Args:
-        language: Selected programming language (for filename hint).
+        language: Active programming language for Monaco syntax highlighting.
 
     Returns:
-        str: The code entered by the user.
+        str: Current code value from the editor.
     """
-
     _is_proc: bool = st.session_state.get("is_processing", False)
-    code = st.text_area(
-        label="Code Editor",
-        placeholder="// Paste your code here...",
-        height=380,
-        key="code_input",
-        label_visibility="collapsed",
+    current_value: str = st.session_state.get("code_input", "")
+
+    # Monaco editor custom component
+    code = render_monaco_editor(
+        value=current_value,
+        language=language,
         disabled=_is_proc,
+        height=400,
+        key="monaco_editor_component",
     )
+
+    # Sync to session_state so all downstream components/handlers have access to it
+    st.session_state["code_input"] = code
+
     return code
 
 
@@ -1003,8 +1012,8 @@ def render_action_buttons() -> tuple[bool, bool, bool]:
     is_processing = st.session_state.get("is_processing", False)
     
     with col1:
-        options_mode = ["Beginner", "Intermediate", "Advanced"]
-        current_mode = st.session_state.get("mode_selector", "Beginner")
+        options_mode = ["Select explanation style...", "Beginner", "Intermediate", "Advanced"]
+        current_mode = st.session_state.get("mode_selector", "Select explanation style...")
         try:
             mode_index = options_mode.index(current_mode)
         except ValueError:
@@ -1634,6 +1643,7 @@ def main() -> None:
 
     # 3b. Initialize click warnings and button flags
     explain_warning: bool = False
+    style_warning: bool = False
     quiz_warning: bool = False
     clear_clicked: bool = False  # may be overridden inside the interactive (else) branch
 
@@ -1651,19 +1661,6 @@ def main() -> None:
     # interactive widget is disabled.  The API call fires here and st.rerun()
     # is called at the end, transitioning back to the normal interactive state.
     with st.container(border=True):
-
-        # ── PHASE 2: API call fires when a pending generation is queued ─────────
-        if is_processing:
-            _task = st.session_state.get("_pending_type", "explain")
-            _code = st.session_state.get("_pending_code", "")
-            _lang = st.session_state.get("_pending_language", "Python")
-            _verb = "Analysing your code" if _task == "explain" else "Generating your quiz"
-            st.markdown(
-                f'<div class="loading-banner">'
-                f'⏳ &nbsp;{_verb} with Gemini AI…'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
 
         # ── WORKSPACE: always rendered; widgets disabled while processing ────────
         last_upload_name = st.session_state.get("_last_upload_name")
@@ -1808,18 +1805,29 @@ def main() -> None:
                         st.rerun()
 
         # 7. Render code input section (always visible, disabled while processing)
-        render_code_input(language)
-        # Use session_state as the source of truth.
-        code: str = st.session_state.get("code_input", "")
+        code: str = render_code_input(language)
 
         # 8. Action buttons (disabled while processing)
         explain_clicked, quiz_clicked, clear_clicked = render_action_buttons()
+
+        # Render the processing banner below buttons during Phase 2
+        if is_processing:
+            _task = st.session_state.get("_pending_type", "explain")
+            _verb = "Analysing your code" if _task == "explain" else "Generating your quiz"
+            st.markdown(
+                f'<div class="loading-banner" style="margin-top: 1rem; margin-bottom: 1rem;">'
+                f'⏳ &nbsp;{_verb} with Gemini AI…'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
         if not is_processing:
             # ── PHASE 1: Queue explain ─────────────────────────────────────────
             if explain_clicked:
                 if not code or not code.strip():
                     explain_warning = True
+                elif mode == "Select explanation style...":
+                    style_warning = True
                 else:
                     # Store everything needed for Phase 2 and trigger rerender
                     st.session_state["is_processing"]    = True
@@ -1842,7 +1850,11 @@ def main() -> None:
         # ── PHASE 2 (continued): execute the queued API call after workspace
         # is fully rendered.  st.rerun() terminates the script here so nothing
         # below this block runs during the loading phase.
+
         if is_processing:
+            _task = st.session_state.get("_pending_type", "explain")
+            _code = st.session_state.get("_pending_code", "")
+            _lang = st.session_state.get("_pending_language", language)
             if _task == "explain":
                 try:
                     results = run_explanation(code=_code, language=_lang)
@@ -1925,6 +1937,11 @@ def main() -> None:
     if explain_warning:
         st.warning(
             "Code Editor is empty. Please enter or upload some source code before requesting an explanation.",
+            icon="⚠️",
+        )
+    if style_warning:
+        st.warning(
+            "Please select an explanation style before generating the explanation.",
             icon="⚠️",
         )
     if quiz_warning:
