@@ -56,3 +56,18 @@ secrets.toml
 
 # ─── Project-specific ─────────────────────────────────────────────────────────
 exports/
+
+# Firebase service account keys
+firebase-*.json
+serviceAccountKey*.json
+
+# ─── Testing / Coverage ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ─── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Node / Monaco (future-proof) ─────────────────────────────────────────────
+node_modules/

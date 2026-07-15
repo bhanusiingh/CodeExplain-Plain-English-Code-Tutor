@@ -327,6 +327,7 @@ Current UI includes:
 - Responsive Workspace
 - Codebase Refactoring
 - Performance Optimization
+- Deployment
 - Final UI Polish
 
 ---
