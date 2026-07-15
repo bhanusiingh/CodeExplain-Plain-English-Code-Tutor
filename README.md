@@ -13,6 +13,20 @@
 
 # ✨ Features
 
+## 💻 Monaco Code Editor
+
+- VS Code-like editing experience
+- Syntax highlighting
+- Auto indentation
+- Bracket matching
+- Auto-closing brackets
+- Line numbers
+- Code folding
+- Word wrap
+- Multi-language support
+
+---
+
 ## 📖 AI Code Explanation
 
 - Plain-English Summary
@@ -52,8 +66,7 @@ Features include:
 
 - Secure Email & Password Authentication
 - Firebase Authentication
-- Cloud-based User Accounts
-- Persistent Login Sessions
+- Persistent User Sessions
 - Cloud History Synchronization
 - Logout & Session Management
 
@@ -102,9 +115,10 @@ Export explanations as:
 
 - Modern Workspace Layout
 - Glassmorphism Login Screen
-- Processing Lock During AI Requests
+- Monaco Code Editor
 - Interactive Analysis Cards
-- Responsive Design Improvements
+- Responsive Layout Improvements
+- Processing Lock During AI Requests
 
 ---
 
@@ -124,12 +138,13 @@ Export explanations as:
 # 🌟 Highlights
 
 - ✅ AI-powered code explanations using Google Gemini
+- ✅ VS Code-like Monaco Editor
 - ✅ Beginner-friendly learning experience
 - ✅ Interactive quiz generation
 - ✅ Firebase Authentication
 - ✅ Persistent Cloud History
 - ✅ PDF & Markdown Export
-- ✅ Modern UI with Glassmorphism Authentication
+- ✅ Modern Glassmorphism Login UI
 - ✅ Production-ready architecture
 
 ---
@@ -138,6 +153,7 @@ Export explanations as:
 
 - Python 3.12
 - Streamlit
+- Monaco Editor
 - Google Gemini API
 - Firebase Authentication
 - Firebase Firestore
@@ -157,8 +173,8 @@ CodeExplain-Plain-English-Code-Tutor/
 
 │
 ├── app.py
-├── requirements.txt
 ├── README.md
+├── requirements.txt
 ├── .env.example
 ├── .gitignore
 │
@@ -175,18 +191,24 @@ CodeExplain-Plain-English-Code-Tutor/
 │   ├── explain.py
 │   ├── learning.py
 │   ├── quiz.py
-│   └── suggestions.py
+│   ├── suggestions.py
+│   └── __init__.py
 │
 ├── services/
 │   ├── auth_ui.py
 │   ├── firebase_service.py
 │   ├── gemini_service.py
-│   └── prompts.py
+│   ├── monaco_editor.py
+│   ├── prompts.py
+│   ├── __init__.py
+│   └── monaco_component/
+│       └── index.html
 │
 └── utils/
     ├── file_handler.py
     ├── helpers.py
-    └── history_manager.py
+    ├── history_manager.py
+    └── __init__.py
 ```
 
 ---
@@ -197,7 +219,6 @@ Clone the repository
 
 ```bash
 git clone https://github.com/bhanusiingh/CodeExplain-Plain-English-Code-Tutor.git
-
 cd CodeExplain-Plain-English-Code-Tutor
 ```
 
@@ -259,15 +280,15 @@ streamlit run app.py
 
 # 📸 Screenshots
 
-> Screenshots will be updated after Phase 2 is fully completed.
+> Screenshots will be updated after deployment.
 
 Current UI includes:
 
-- Modern Workspace
-- Glassmorphism Login
-- Firebase Authentication
-- Cloud History
-- AI Analysis Dashboard
+- 🔐 Glassmorphism Login
+- 💻 Monaco Code Editor
+- 📖 AI Explanation Dashboard
+- 🧠 Quiz Generator
+- ☁ Cloud History
 
 ---
 
@@ -286,25 +307,25 @@ Current UI includes:
 
 ---
 
-## ✅ Phase 2 (Completed So Far)
+## ✅ Phase 2 (Completed)
 
 - Modern Workspace UI
+- Monaco Code Editor
 - Improved Analysis Cards
 - Processing Lock
 - Firebase Authentication
 - Glassmorphism Login
 - Persistent Cloud History
 - Responsive Authentication UI
+- Deployment
 
 ---
 
-## 🚀 Upcoming
+## 🚀 Phase 3 (Planned)
 
-- Monaco Editor
 - Light / Dark Theme
-- Codebase Refactoring
 - Responsive Workspace
-- Deployment
+- Codebase Refactoring
 - Performance Optimization
 - Final UI Polish
 
@@ -324,7 +345,7 @@ Designed for deployment using:
 
 **Bhanu Pratap Singh**
 
-Built using **Python**, **Streamlit**, **Google Gemini AI**, and **Firebase** as an educational project focused on helping beginners understand programming through AI-assisted explanations.
+Built using **Python**, **Streamlit**, **Google Gemini AI**, **Firebase**, and **Monaco Editor** as an educational project focused on helping beginners understand programming through AI-assisted explanations.
 
 ---
 
