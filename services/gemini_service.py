@@ -22,6 +22,7 @@ Remove the diagnostic prints once the real error is identified.
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+import streamlit as st
 
 # ── Module-level constants ────────────────────────────────────────────────────
 _MODEL_NAME: str = "gemini-2.5-flash"   # Fast, free-tier model (confirmed available)
@@ -42,7 +43,10 @@ def get_api_key_info() -> str:
         str: E.g. "AIzaSyAB..." or "Key not set" if missing.
     """
     load_dotenv(override=True)
-    key: str | None = os.getenv("GEMINI_API_KEY")
+    key = (
+        st.secrets.get("GEMINI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+    )
     if not key or not key.strip():
         return "Key not set"
     k = key.strip()
@@ -53,26 +57,24 @@ def get_api_key_info() -> str:
 
 def _initialise_client() -> None:
     """
-    Configure the Gemini SDK with the current API key from .env.
-
-    Uses load_dotenv(override=True) so a freshly edited .env is honoured
-    without restarting the Streamlit server.  Re-configures the SDK only
-    when the key has actually changed.
-
-    Raises:
-        RuntimeError: When GEMINI_API_KEY is missing or blank.
+    Configure the Gemini SDK using Streamlit Secrets (production)
+    or .env (local development).
     """
     global _configured_key
 
     load_dotenv(override=True)
 
-    api_key: str | None = os.getenv("GEMINI_API_KEY")
+    api_key = (
+        st.secrets.get("GEMINI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+    )
 
     if not api_key or not api_key.strip():
         raise RuntimeError(
-            "GEMINI_API_KEY is missing. "
-            "Please add it to your .env file:\n"
-            "  GEMINI_API_KEY=your_key_here"
+            "GEMINI_API_KEY is missing.\n"
+            "Add it to either:\n"
+            "• Streamlit Secrets (deployment)\n"
+            "• .env (local development)"
         )
 
     api_key = api_key.strip()
