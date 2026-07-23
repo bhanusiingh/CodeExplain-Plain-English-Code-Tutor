@@ -332,13 +332,19 @@ Current UI includes:
 
 ---
 
-# ☁ Deployment
+## ☁ Deployment
 
-Designed for deployment using:
+CodeExplain is fully deployed and publicly accessible.
 
-- Streamlit Community Cloud
-- Firebase Authentication
-- Firebase Firestore
+**Live Demo:**
+https://codeexplain-plain-english-code-tutor.streamlit.app/
+
+### Deployment Stack
+
+* **Hosting:** Streamlit Community Cloud
+* **Authentication:** Firebase Authentication
+* **Database:** Firebase Firestore
+
 
 ---
 
